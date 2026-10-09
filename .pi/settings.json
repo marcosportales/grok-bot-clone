@@ -1,0 +1,12 @@
+{
+  "subagents": {
+    "agentOverrides": {
+      "scout": { "model": "nan/mimo-v2.6-flash" },
+      "researcher": { "model": "nan/qwen3.8-flash" },
+      "worker": { "model": "nan/deepseek-v4-flash" },
+      "reviewer": { "model": "nan/qwen3.6" },
+      "oracle": { "model": "nan/glm5.3-flash" },
+      "delegate": { "model": "inherit" }
+    }
+  }
+}
