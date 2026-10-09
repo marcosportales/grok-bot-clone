@@ -2,8 +2,8 @@
 
 The root page tells the user the project is ready, shows the starter copy, offers
 the primary `Button`, and prints the hint for the dark-mode hotkey. It is one of
-three routes in the app; the header controls and the sign-in and sign-up routes
-live in [auth](./auth.md).
+three page routes; the header controls and the sign-in and sign-up routes live in
+[auth](./auth.md), and the JSON endpoint in [API health](./api-health.md).
 
 ## Sub-features
 
@@ -11,7 +11,7 @@ live in [auth](./auth.md).
   copy.
 - `home-button` renders the primary control as a button named `Button` that has a
   real, hit-testable box.
-- `home-hint` shows the footer hint `(Press d to toggle dark mode)`.
+- `home-hint` shows the hint `(Press d to toggle dark mode)`.
 
 ## How to get to it (user POV)
 

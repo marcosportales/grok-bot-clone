@@ -405,15 +405,20 @@ function findAx(nodes, role, name) {
   return nodes.find((n) => !n.ignored && axRole(n) === role && axName(n) === name)
 }
 
+const CENTER_AND_HIT = `function () {
+  this.scrollIntoView({ block: "center", inline: "center" });
+  const r = this.getBoundingClientRect();
+  const x = r.x + r.width / 2;
+  const y = r.y + r.height / 2;
+  const top = document.elementFromPoint(x, y);
+  return { x, y, w: r.width, h: r.height, hit: !!top && (top === this || this.contains(top)) };
+}`
+
 async function rectForBackendNode(cdp, backendNodeId) {
   const { object } = await cdp.send("DOM.resolveNode", { backendNodeId })
   const { result } = await cdp.send("Runtime.callFunctionOn", {
     objectId: object.objectId,
-    functionDeclaration: `function () {
-      this.scrollIntoView({ block: "center", inline: "center" });
-      const r = this.getBoundingClientRect();
-      return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
-    }`,
+    functionDeclaration: CENTER_AND_HIT,
     returnByValue: true,
   })
   return result.value
@@ -424,9 +429,7 @@ async function rectForSelector(cdp, selector) {
     expression: `(() => {
       const el = document.querySelector(${JSON.stringify(selector)});
       if (!el) return null;
-      el.scrollIntoView({ block: "center", inline: "center" });
-      const r = el.getBoundingClientRect();
-      return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
+      return (${CENTER_AND_HIT}).call(el);
     })()`,
     returnByValue: true,
   })
@@ -435,6 +438,7 @@ async function rectForSelector(cdp, selector) {
 
 async function clickPoint(cdp, point) {
   if (!point || point.w <= 0 || point.h <= 0) fail("target has no clickable box")
+  if (!point.hit) fail("target is covered at its centre point")
   const base = { x: point.x, y: point.y, button: "left", clickCount: 1 }
   await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y })
   await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", ...base })

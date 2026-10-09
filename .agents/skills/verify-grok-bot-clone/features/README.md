@@ -4,12 +4,13 @@ This directory is the maintained source for verifying the user-facing behavior o
 `grok-bot-clone`. Read this index before driving the app, then use the matching
 feature file as the recipe.
 
-At the current commit the app is a Next.js + shadcn starter with three routes and
-three user-facing behaviors: the root page, the dark-mode toggle, and the Clerk
-auth surface (header controls, a sign-in modal, and the `/sign-in` and `/sign-up`
-routes). There is no API and no persistence layer beyond `localStorage`. The map
-covers everything a user can touch today. Add a feature file whenever a new route,
-control, or command appears.
+At the current commit the app is a Next.js + shadcn starter with four routes: the
+root page, the `/sign-in` and `/sign-up` routes, and the `/api/health` endpoint.
+Four user-facing behaviors are mapped: the root page, the dark-mode toggle, the
+Clerk auth surface (header controls, a sign-in modal, and the two auth routes),
+and the health endpoint backed by the Postgres database. The only browser-side
+persistence is `localStorage`. The map covers everything a user can touch today.
+Add a feature file whenever a new route, control, or command appears.
 
 ## Baseline preconditions
 
@@ -73,3 +74,5 @@ required state, commands, and observable proof.
   following, and persistence across reloads.
 - [Auth](./auth.md) covers the header controls, the sign-in modal, and the
   `/sign-in` and `/sign-up` routes.
+- [API health](./api-health.md) covers the `/api/health` status, body, and content
+  type.
