@@ -7,10 +7,13 @@
  * into the project to verify it.
  *
  * Lifecycle: `up` starts one dev server (owned by this run) plus one headless
- * Chrome, and records both PIDs under the verify root. Every other command
- * attaches to that already-running pair, so state (theme, scroll, DOM) is
- * preserved between invocations. `down` kills exactly the PIDs this run
- * started; proof artifacts are never removed by teardown.
+ * Chrome, and records both PIDs under the verify root. When this checkout is
+ * already running `next dev`, `up` reuses that server instead of starting a
+ * second one and marks it unowned, because Next 16 keeps one dev server per
+ * project directory. Every other command attaches to that already-running pair,
+ * so state (theme, scroll, DOM) is preserved between invocations. `down` kills
+ * exactly the PIDs this run started and leaves a reused dev server running;
+ * proof artifacts are never removed by teardown.
  *
  * Run `node scripts/control-grok.mjs help` for the command list.
  */
@@ -27,6 +30,7 @@ const ROOT = process.env.GROK_VERIFY_ROOT || "/tmp/grok-bot-clone-verify"
 const RUN_DIR = join(ROOT, "run")
 const ARTIFACTS_DIR = join(ROOT, "artifacts")
 const STATE_FILE = join(RUN_DIR, "state.json")
+const LOCK_FILE = join(REPO, ".next", "dev", "lock")
 const DEFAULT_PORT = 3111
 
 const log = (...a) => console.log(...a)
@@ -81,16 +85,108 @@ function portFree(port) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-async function waitForHttp(url, timeoutMs = 60_000) {
+async function httpStatus(url, timeoutMs = 2_000) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const r = await fetch(url, { redirect: "manual", signal: ctrl.signal })
+    return r.status
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// `next dev` writes a lock for the whole project directory. A spawned dev
+// server that loses the race prints this marker and exits, so watch the log for
+// it instead of waiting out the readiness timeout.
+async function waitForDevServer(baseUrl, devLog, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    try {
-      const r = await fetch(url, { redirect: "manual" })
-      if (r.status < 500) return r
-    } catch {}
+    if (existsSync(devLog) && readFileSync(devLog, "utf8").includes("Another next dev server is already running")) {
+      return { blocked: true }
+    }
+    const status = await httpStatus(baseUrl + "/", 1_000)
+    if (status !== null && status < 500) return { ready: true }
     await sleep(200)
   }
-  return null
+  return { timeout: true }
+}
+
+function readLock() {
+  if (!existsSync(LOCK_FILE)) return null
+  try {
+    const lock = JSON.parse(readFileSync(LOCK_FILE, "utf8"))
+    return Number.isFinite(lock?.pid) && Number.isFinite(lock?.port) ? lock : null
+  } catch {
+    return null
+  }
+}
+
+function pidCwd(pid) {
+  const out = spawnSync("readlink", ["-f", `/proc/${pid}/cwd`], { encoding: "utf8" })
+  return out.status === 0 ? out.stdout.trim() : null
+}
+
+// The dev server this checkout already runs, if any. Reusing it keeps the
+// one-instance-per-checkout rule without killing a server the user started.
+async function detectDevServer() {
+  const lock = readLock()
+  if (!lock || !alive(lock.pid)) return null
+  const cwd = pidCwd(lock.pid)
+  if (cwd !== REPO) return { foreign: true, pid: lock.pid, cwd }
+  const baseUrl = `http://localhost:${lock.port}`
+  const deadline = Date.now() + 15_000
+  while (Date.now() < deadline) {
+    const status = await httpStatus(baseUrl + "/")
+    if (status !== null && status < 500) return { pid: lock.pid, port: lock.port, baseUrl }
+    await sleep(300)
+  }
+  return { unreachable: true, pid: lock.pid, baseUrl }
+}
+
+async function startOwnedDevServer(port, devLog) {
+  const baseUrl = `http://localhost:${port}`
+  if (!(await portFree(port))) {
+    fail(
+      `port ${port} is already in use by a process this run did not start.\n` +
+        `Refusing to drive an unknown server. Free it or pass --port <other>.`
+    )
+  }
+  if (!existsSync(join(REPO, "node_modules", ".bin", "next"))) {
+    fail("node_modules/.bin/next is missing. Run `pnpm install` in the repo first.")
+  }
+
+  const stale = readLock()
+  if (stale && !alive(stale.pid)) {
+    log(`clearing stale dev lock ${LOCK_FILE} (pid ${stale.pid} is gone)`)
+    rmSync(LOCK_FILE, { force: true })
+  }
+
+  const child = spawn(join(REPO, "node_modules", ".bin", "next"), ["dev", "-p", String(port)], {
+    cwd: REPO,
+    detached: true,
+    stdio: ["ignore", openSync(devLog, "a"), openSync(devLog, "a")],
+  })
+  child.unref()
+  await sleep(50)
+
+  const outcome = await waitForDevServer(baseUrl, devLog)
+  if (outcome.blocked) {
+    killGroup(child.pid)
+    const other = readLock()
+    fail(
+      "another next dev server is already running for this checkout" +
+        (other ? ` (pid ${other.pid}, http://localhost:${other.port})` : "") +
+        `.\nNext 16 allows one dev server per project directory (${LOCK_FILE}). Stop it, then retry.`
+    )
+  }
+  if (outcome.timeout) {
+    killGroup(child.pid)
+    fail(`dev server did not answer at ${baseUrl} within 60s. See ${devLog}.`)
+  }
+  return { pid: child.pid, port, baseUrl }
 }
 
 function findChrome() {
@@ -386,22 +482,28 @@ async function cmdUp() {
         "Run `control-grok down` first if it is stale."
     )
   }
-  if (existing) rmSync(RUN_DIR, { recursive: true, force: true })
+  // Always start from a clean run dir: a leftover dev-server.log would carry the
+  // previous run's lock marker and make the readiness check report a false block.
+  rmSync(RUN_DIR, { recursive: true, force: true })
 
-  const port = Number(arg("port", DEFAULT_PORT))
-  // Must be `localhost`, not `127.0.0.1`: Next dev treats the two as different
-  // origins and blocks its HMR client on 127.0.0.1, which prevents React from
-  // hydrating (and the dark-mode hotkey from ever being attached).
-  const baseUrl = `http://localhost:${port}`
-  if (!(await portFree(port))) {
+  const reuse = await detectDevServer()
+  if (reuse?.foreign) {
     fail(
-      `port ${port} is already in use by a process this run did not start.\n` +
-        `Refusing to drive an unknown server. Free it or pass --port <other>.`
+      `a dev server for another checkout holds ${LOCK_FILE} (pid ${reuse.pid}, cwd ${reuse.cwd || "unknown"}).\n` +
+        "Refusing to drive a foreign instance. Stop it, then retry."
     )
   }
-
-  if (!existsSync(join(REPO, "node_modules", ".bin", "next"))) {
-    fail("node_modules/.bin/next is missing. Run `pnpm install` in the repo first.")
+  if (reuse?.unreachable) {
+    fail(
+      `dev pid ${reuse.pid} holds ${LOCK_FILE} but ${reuse.baseUrl} did not answer within 15s.\n` +
+        `It may still be starting. Retry, or stop pid ${reuse.pid} if it is wedged.`
+    )
+  }
+  if (reuse && process.argv.includes("--port")) {
+    fail(
+      `this checkout already runs a dev server on ${reuse.baseUrl} (pid ${reuse.pid}), and Next 16 cannot start a second one.\n` +
+        `Use that server, or stop pid ${reuse.pid} before passing --port.`
+    )
   }
 
   mkdirSync(RUN_DIR, { recursive: true })
@@ -409,19 +511,16 @@ async function cmdUp() {
   const devLog = join(RUN_DIR, "dev-server.log")
   const chromeLog = join(RUN_DIR, "chrome.log")
 
-  const nextPid = spawn(join(REPO, "node_modules", ".bin", "next"), ["dev", "-p", String(port)], {
-    cwd: REPO,
-    detached: true,
-    stdio: ["ignore", openSync(devLog, "a"), openSync(devLog, "a")],
-  })
-  nextPid.unref()
-  await sleep(50)
-
-  const ready = await waitForHttp(baseUrl, 60_000)
-  if (!ready) {
-    killGroup(nextPid.pid)
-    fail(`dev server did not answer at ${baseUrl} within 60s. See ${devLog}.`)
+  // Must be `localhost`, not `127.0.0.1`: Next dev treats the two as different
+  // origins and blocks its HMR client on 127.0.0.1, which prevents React from
+  // hydrating (and the dark-mode hotkey from ever being attached).
+  const dev = reuse
+    ? { pid: reuse.pid, port: reuse.port, baseUrl: reuse.baseUrl, owned: false }
+    : { ...(await startOwnedDevServer(Number(arg("port", DEFAULT_PORT)), devLog)), owned: true }
+  if (!dev.owned) {
+    log(`reusing the dev server this checkout already runs (pid ${dev.pid}, ${dev.baseUrl})`)
   }
+  const baseUrl = dev.baseUrl
 
   const profileDir = join(RUN_DIR, "chrome-profile")
   mkdirSync(profileDir, { recursive: true })
@@ -446,7 +545,17 @@ async function cmdUp() {
   const chromePid = chrome.pid
   const chromePort = await waitForChrome(profileDir)
 
-  writeState({ runId, port, baseUrl, nextPid: nextPid.pid, chromePid, chromePort, profileDir, startedAt: new Date().toISOString() })
+  writeState({
+    runId,
+    port: dev.port,
+    baseUrl,
+    nextPid: dev.pid,
+    nextOwned: dev.owned,
+    chromePid,
+    chromePort,
+    profileDir,
+    startedAt: new Date().toISOString(),
+  })
 
   const target = await pageTarget(chromePort, baseUrl)
   const cdp = await CDP.connect(target.webSocketDebuggerUrl)
@@ -457,7 +566,10 @@ async function cmdUp() {
 
   log(`run ${runId}`)
   log(`app     ${baseUrl}`)
-  log(`dev pid ${nextPid.pid}   chrome pid ${chromePid} (cdp ${chromePort})`)
+  log(
+    `dev pid ${dev.pid} ${dev.owned ? "(owned)" : "(reused, left running by down)"}   ` +
+      `chrome pid ${chromePid} (cdp ${chromePort})`
+  )
   log(`artifacts will be written under ${ARTIFACTS_DIR}`)
 }
 
@@ -467,13 +579,17 @@ async function cmdDown() {
     log("nothing to stop (no run state)")
     return
   }
+  const ownsDev = state.nextOwned !== false
   killGroup(state.chromePid)
-  killGroup(state.nextPid)
-  for (let i = 0; i < 40 && (alive(state.chromePid) || alive(state.nextPid)); i++) await sleep(100)
+  if (ownsDev) killGroup(state.nextPid)
+  for (let i = 0; i < 40 && (alive(state.chromePid) || (ownsDev && alive(state.nextPid))); i++) await sleep(100)
   killGroup(state.chromePid, "SIGKILL")
-  killGroup(state.nextPid, "SIGKILL")
+  if (ownsDev) killGroup(state.nextPid, "SIGKILL")
   rmSync(RUN_DIR, { recursive: true, force: true })
-  log(`stopped run ${state.runId} (dev pid ${state.nextPid}, chrome pid ${state.chromePid})`)
+  log(
+    `stopped run ${state.runId} (chrome pid ${state.chromePid}; dev pid ${state.nextPid} ` +
+      `${ownsDev ? "stopped" : "left running, not started by this run"})`
+  )
   log(`proof artifacts kept under ${ARTIFACTS_DIR}`)
 }
 
@@ -483,18 +599,14 @@ async function cmdDoctor() {
   if (!state) fail("doctor: no run state. Run `control-grok up` first.")
   log(`run        ${state.runId}`)
   log(`app url    ${state.baseUrl}`)
-  log(`dev pid    ${state.nextPid} alive=${alive(state.nextPid)}`)
+  log(`dev pid    ${state.nextPid} alive=${alive(state.nextPid)} owned=${state.nextOwned !== false}`)
   log(`chrome pid ${state.chromePid} alive=${alive(state.chromePid)} cdp=${state.chromePort}`)
   if (!alive(state.nextPid)) problems.push("dev server process is dead")
   if (!alive(state.chromePid)) problems.push("chrome process is dead")
 
-  try {
-    const cwd = spawnSync("readlink", ["-f", `/proc/${state.nextPid}/cwd`], { encoding: "utf8" }).stdout.trim()
-    log(`dev cwd    ${cwd}`)
-    if (cwd !== REPO) problems.push(`dev server cwd ${cwd} is not this checkout ${REPO}`)
-  } catch {
-    problems.push("could not read dev server cwd")
-  }
+  const cwd = pidCwd(state.nextPid)
+  log(`dev cwd    ${cwd || "unknown"}`)
+  if (cwd !== REPO) problems.push(`dev server cwd ${cwd || "unknown"} is not this checkout ${REPO}`)
 
   try {
     const r = await fetch(state.baseUrl + "/")
@@ -694,7 +806,7 @@ async function cmdArtifacts() {
 function cmdHelp() {
   console.log(`control-grok — drive the grok-bot-clone app
 
-  up [--port N]            start the owned dev server + headless Chrome
+  up [--port N]            start or reuse the dev server + start headless Chrome
   down                     stop exactly the processes this run started
   doctor                   read-only health check of the running instance
   open <path>              navigate the page (default /)
@@ -708,6 +820,9 @@ function cmdHelp() {
   screenshot <path> [--hide <css,selector>]  write a PNG
   theme [--scheme dark|light]  print theme state; optionally emulate the OS scheme first
   artifacts                print the proof-artifact directory for this run
+
+Reuse: when this checkout already runs next dev, up drives that server
+instead of starting a second one, and down leaves it running.
 
 Env: CHROME_BIN, GROK_VERIFY_ROOT (default ${ROOT})`)
 }

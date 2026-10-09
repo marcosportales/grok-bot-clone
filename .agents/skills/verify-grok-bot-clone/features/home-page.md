@@ -1,8 +1,9 @@
 # Home page
 
 The root page tells the user the project is ready, shows the starter copy, offers
-the primary `Button`, and prints the hint for the dark-mode hotkey. It is the only
-page in the app.
+the primary `Button`, and prints the hint for the dark-mode hotkey. It is one of
+three routes in the app; the header controls and the sign-in and sign-up routes
+live in [auth](./auth.md).
 
 ## Sub-features
 
@@ -47,6 +48,9 @@ Preconditions:
 
 - The document has no `<title>`, so the ARIA root is `RootWebArea` with no name.
   Assert on the heading and button, not on an app title.
+- The header above the page belongs to the auth feature. Its `Sign in` and
+  `Sign up` buttons are in the accessibility tree of `/` alongside `Button`; drive
+  them per [auth](./auth.md), and assert on the heading and `Button` here.
 - `Button` has no click handler yet. A successful click proves the control renders,
   is enabled, and is hit-testable. It does not change state; do not claim a state
   change from it.
