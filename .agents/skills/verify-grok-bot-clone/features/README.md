@@ -4,10 +4,12 @@ This directory is the maintained source for verifying the user-facing behavior o
 `grok-bot-clone`. Read this index before driving the app, then use the matching
 feature file as the recipe.
 
-At the current commit the app is a Next.js + shadcn starter with exactly one page
-and two user-facing behaviors. There is no routing, auth, persistence layer, or
-API, so this map covers everything a user can actually touch today. Add a feature
-file whenever a new route, control, or command appears.
+At the current commit the app is a Next.js + shadcn starter with three routes and
+three user-facing behaviors: the root page, the dark-mode toggle, and the Clerk
+auth surface (header controls, a sign-in modal, and the `/sign-in` and `/sign-up`
+routes). There is no API and no persistence layer beyond `localStorage`. The map
+covers everything a user can touch today. Add a feature file whenever a new route,
+control, or command appears.
 
 ## Baseline preconditions
 
@@ -15,8 +17,13 @@ file whenever a new route, control, or command appears.
 - Launch an owned instance from the repository root with
   `node .agents/skills/verify-grok-bot-clone/scripts/control-grok.mjs up`, and
   define `CG="node .agents/skills/verify-grok-bot-clone/scripts/control-grok.mjs"`.
-- `up` refuses to start a second instance: `next dev` shares `.next`, so one
-  instance per checkout. Never drive an instance this run did not start.
+- `up` refuses to start a second instance: Next 16 keeps one `next dev` per project
+  directory. When this checkout is already running one, `up` reuses it, prints
+  `reusing the dev server ...`, marks the dev PID unowned, and `down` leaves it
+  running. `doctor` reports `owned=false` for that case.
+- Never drive an instance for a different checkout. `up` fails when the dev lock
+  belongs to a foreign directory, and `doctor` checks that the dev PID's working
+  directory is this checkout.
 - Run `$CG doctor` and require a healthy report before trusting a proof.
 - Start every recipe from the baseline state unless its preconditions say
   otherwise. Reset the baseline with
@@ -64,3 +71,5 @@ required state, commands, and observable proof.
   the visible dark-mode hint.
 - [Dark mode toggle](./theme-toggle.md) covers the `d` hotkey, system-preference
   following, and persistence across reloads.
+- [Auth](./auth.md) covers the header controls, the sign-in modal, and the
+  `/sign-in` and `/sign-up` routes.

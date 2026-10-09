@@ -28,10 +28,16 @@ how to reach it, and what proves it.
 ## Isolation
 
 One instance per checkout, enforced by the driver. `next dev` serves from the
-shared `.next` directory, so a second dev server for this project would fight the
-first over the build cache. `up` therefore refuses to start when a run it owns is
-still alive, or when the target port is already taken by a process it did not
-start. It never attaches to an unknown server.
+shared `.next` directory and Next 16 keeps a single dev server per project
+directory, so a second one cannot start. `up` therefore refuses to start when a
+run it owns is still alive, and never attaches to a server belonging to another
+checkout.
+
+When this checkout is already running `next dev` (a `pnpm dev` left open in a
+terminal, for example), `up` reuses that server instead of starting a second one.
+It records the dev PID as unowned and `down` leaves it running, so verification
+does not kill a server you started. Because the project lock makes the port
+irrelevant, `up --port` fails while a server for this checkout is already up.
 
 State and proof artifacts live outside the repo:
 
@@ -50,7 +56,9 @@ $CG up --port 3222     # use another port
 
 `up` is ready when it prints the run id, the app URL, and both PIDs. It waits for
 `GET /` to return before launching Chrome, and waits for Chrome's DevTools port
-before navigating, so the printed URLs are already serving the app.
+before navigating, so the printed URLs are already serving the app. When it reuses
+a running dev server it says so first, and the dev PID line reads
+`(reused, left running by down)` instead of `(owned)`.
 
 There is nothing else to build first beyond dependencies: run `pnpm install` once
 if `node_modules/.bin/next` is missing. For a short check the printed app URL
@@ -72,12 +80,12 @@ artifacts under `artifacts/` are never removed.
 $CG doctor
 ```
 
-Read-only. Reports the run id, both PIDs and whether they are alive, the dev
-server's working directory (must be this checkout), the `GET /` status, and
-whether the accessibility tree contains the heading `Project ready!` and the
-button `Button`. Exits non-zero and lists problems when the instance is not worth
-driving. Run it first whenever anything looks off, and before a proof run whose
-result matters.
+Read-only. Reports the run id, both PIDs and whether they are alive, whether the
+run owns the dev server (`owned=false` means it was reused), the dev server's
+working directory (must be this checkout), the `GET /` status, and whether the
+accessibility tree contains the heading `Project ready!` and the button `Button`.
+Exits non-zero and lists problems when the instance is not worth driving. Run it
+first whenever anything looks off, and before a proof run whose result matters.
 
 ## Drive
 
@@ -163,7 +171,7 @@ Kill what you started: use `$CG down`, which uses the recorded PIDs.
 
 ## Helpers
 
-`scripts/control-grok.mjs` — the whole driver. Run `$CG help` for the command
+`scripts/control-grok.mjs` is the whole driver. Run `$CG help` for the command
 list. Relevant environment variables:
 
 - `CHROME_BIN`: Chrome/Chromium executable to launch.
