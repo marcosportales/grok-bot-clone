@@ -6,9 +6,10 @@ description: Drive and verify the grok-bot-clone Next.js app (a local web UI) wi
 # Verify grok-bot-clone
 
 `grok-bot-clone` is a Next.js 16 (App Router, Turbopack) + shadcn/ui starter. Its
-only user surface today is one web page. This skill launches that page in an owned
-dev server plus an owned headless Chrome, lets you drive it like a user, and
-captures proof artifacts.
+user surfaces today are three page routes (`/`, `/sign-in`, `/sign-up`) and the
+`/api/health` JSON endpoint. This skill launches the app in an owned dev server
+plus an owned headless Chrome, lets you drive it like a user, and captures proof
+artifacts.
 
 The driver is `scripts/control-grok.mjs` (see **Helpers**). It has no dependencies:
 it uses Node's built-in `fetch` and `WebSocket` to speak CDP to the system Chrome.
