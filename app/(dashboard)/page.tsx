@@ -30,7 +30,7 @@ export default async function Page() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <BotDialog />
+          <BotDialog>Create a new bot</BotDialog>
         </EmptyContent>
       </Empty>
     </div>
