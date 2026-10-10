@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { PlusIcon, ShuffleIcon } from "lucide-react"
 import { nanoid } from "nanoid"
-import { useState, useTransition } from "react"
+import { type ReactNode, useState, useTransition } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 
 import { createBot } from "@/actions/bot"
@@ -49,8 +49,21 @@ function emptyBot(): InsertBot {
   return { name: "", avatar: nanoid(), job: "", instructions: "" }
 }
 
-function BotDialog() {
-  const [open, setOpen] = useState(false)
+type BotDialogProps = {
+  /** Controlled open state. Omit it and the dialog holds its own state. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /**
+   * The trigger button's label. Omit it and the dialog renders no trigger, for
+   * a caller that opens the dialog itself: the sidebar opens it from a
+   * dropdown item, which is not a DialogTrigger.
+   */
+  children?: ReactNode
+}
+
+function BotDialog({ open: openProp, onOpenChange, children }: BotDialogProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = openProp ?? uncontrolledOpen
   const [isPending, startTransition] = useTransition()
 
   const form = useForm<InsertBot>({
@@ -60,12 +73,20 @@ function BotDialog() {
 
   const job = useWatch({ control: form.control, name: "job" })
 
-  function handleOpenChange(nextOpen: boolean) {
-    setOpen(nextOpen)
-
-    if (nextOpen) {
+  function setOpen(nextOpen: boolean) {
+    if (!nextOpen) {
+      // Reset on close, not on open. A caller that owns `open` flips it to true
+      // itself, and base-ui only reports the changes it causes through
+      // onOpenChange, so an open-time reset would miss that open and show the
+      // last visit's answers.
       form.reset(emptyBot())
     }
+
+    if (openProp === undefined) {
+      setUncontrolledOpen(nextOpen)
+    }
+
+    onOpenChange?.(nextOpen)
   }
 
   function onSubmit(values: InsertBot) {
@@ -91,11 +112,13 @@ function BotDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant="secondary" size="lg" />}>
-        <PlusIcon data-icon="inline-start" />
-        Create a new bot
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={setOpen}>
+      {children && (
+        <DialogTrigger render={<Button variant="secondary" size="lg" />}>
+          <PlusIcon data-icon="inline-start" />
+          {children}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New bot</DialogTitle>
