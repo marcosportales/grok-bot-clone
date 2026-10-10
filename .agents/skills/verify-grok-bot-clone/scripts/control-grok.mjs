@@ -462,6 +462,107 @@ async function pressKey(cdp, key) {
   await sleep(150)
 }
 
+const SELF = fileURLToPath(import.meta.url)
+
+function runSelf(args) {
+  const out = spawnSync(process.execPath, [SELF, ...args], { encoding: "utf8" })
+  if (out.status !== 0) {
+    fail(`signin step \`${args.join(" ")}\` failed:\n${(out.stderr || out.stdout).trim()}`)
+  }
+  return out.stdout.trim()
+}
+
+const axHas = (role, name) =>
+  withPage(async (cdp) => {
+    const { nodes } = await axTree(cdp)
+    return !!findAx(nodes, role, name)
+  })()
+
+const clerkUserId = () =>
+  withPage(async (cdp) => {
+    const { result } = await cdp.send("Runtime.evaluate", {
+      expression: "window.Clerk?.user?.id ?? null",
+      returnByValue: true,
+      awaitPromise: true,
+    })
+    return result.value
+  })()
+
+// Clerk renders its forms in the browser, so the first read after `up` can land
+// before the bundle does. Wait for the node instead of failing on a cold page.
+async function waitForAx(role, name, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const node = await withPage(async (cdp) => {
+      const { nodes } = await axTree(cdp)
+      return findAx(nodes, role, name) ? { found: true } : null
+    })()
+    if (node) return node
+    if (Date.now() >= deadline) return null
+    await sleep(300)
+  }
+}
+
+async function cmdSignIn() {
+  const email = process.env.GROK_VERIFY_EMAIL
+  const password = process.env.GROK_VERIFY_PASSWORD
+  if (!email || !password) {
+    fail(
+      "signin needs GROK_VERIFY_EMAIL and GROK_VERIFY_PASSWORD for a dev-instance test account.\n" +
+        "See the Signing in section of this skill's SKILL.md."
+    )
+  }
+  const state = readState()
+  if (!state) fail("no running instance. Run `control-grok up` first.")
+  if (!alive(state.nextPid) || !alive(state.chromePid)) fail("instance is not alive. Run `down` then `up`.")
+
+  const existing = await clerkUserId()
+  if (existing) {
+    log(`already signed in as ${existing}`)
+    return
+  }
+
+  runSelf(["open", "/sign-in"])
+  runSelf(["click", "--role", "textbox", "--name", "Email address"])
+  runSelf(["type", email])
+  runSelf(["click", "--role", "button", "--name", "Continue"])
+
+  let sawPassword = false
+  for (let i = 0; i < 20 && !sawPassword; i++) {
+    await sleep(500)
+    sawPassword = await axHas("textbox", "Password")
+  }
+  if (!sawPassword) fail("the sign-in form never asked for a password. Check GROK_VERIFY_EMAIL.")
+
+  runSelf(["click", "--role", "textbox", "--name", "Password"])
+  runSelf(["type", password])
+  runSelf(["click", "--role", "button", "--name", "Continue"])
+
+  let userId = null
+  for (let i = 0; i < 40 && !userId; i++) {
+    await sleep(500)
+    userId = await clerkUserId()
+  }
+  if (!userId) {
+    const path = await withPage((cdp) => currentPath(cdp))()
+    fail(
+      `still signed out after the password step (path ${path}).\n` +
+        "A `/sign-in/client-trust` path means the test account needs `bypass_client_trust`."
+    )
+  }
+  log(`signed in as ${userId}`)
+}
+
+const cmdType = withPage(async (cdp) => {
+  const text = process.argv[3]
+  if (!text) fail("usage: type <text>")
+  for (const ch of text) {
+    await cdp.send("Input.insertText", { text: ch })
+    await sleep(20)
+  }
+  log(`typed ${text.length} characters`)
+})
+
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`)
   return i >= 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith("--") ? process.argv[i + 1] : fallback
@@ -623,14 +724,17 @@ async function cmdDoctor() {
   if (!problems.length) {
     try {
       await withPage(async (cdp) => {
-        const { nodes } = await axTree(cdp)
-        const heading = findAx(nodes, "heading", "Project ready!")
-        const button = findAx(nodes, "button", "Button")
-        log(`heading    ${heading ? "found" : "MISSING"}`)
-        log(`button     ${button ? "found" : "MISSING"}`)
-        log(`path       ${await currentPath(cdp)}`)
-        if (!heading) problems.push('heading "Project ready!" not present')
-        if (!button) problems.push('button "Button" not present')
+        const path = await currentPath(cdp)
+        log(`path       ${path}`)
+        // A signed-out probe lands on the auth route: `/` is behind Clerk.
+        const [role, name] = path.startsWith("/sign-up")
+          ? ["heading", "Create your account"]
+          : path.startsWith("/sign-in")
+            ? ["heading", "Sign in to grok-bot-clone"]
+            : ["button", "Create a new bot"]
+        const found = await waitForAx(role, name)
+        log(`${role.padEnd(10)} ${found ? "found" : "MISSING"}`)
+        if (!found) problems.push(`no ${role} named "${name}" at ${path} after 10s`)
       })()
     } catch (e) {
       problems.push(`CDP check failed: ${e.message}`)
@@ -682,6 +786,9 @@ const cmdEval = withPage(async (cdp) => {
 const cmdPress = withPage(async (cdp) => {
   const key = process.argv[3]
   if (!key) fail("usage: press <key> (e.g. press d)")
+  if (!(key in KEYCODES) && !/^[A-Za-z0-9]$/.test(key)) {
+    fail(`press takes one letter, one digit, or a named key. Use \`type ${JSON.stringify(key)}\` for text.`)
+  }
   await pressKey(cdp, key)
   log(`pressed ${key}`)
 })
@@ -816,7 +923,9 @@ function cmdHelp() {
   open <path>              navigate the page (default /)
   text [css-selector]      print body or element text
   eval <js>                evaluate JS in the page, print JSON value
-  press <key>              dispatch a key (e.g. press d)
+  press <key>              dispatch one key (e.g. press d)
+  type <text>              click a field first, then enter the whole string
+  signin                   sign in with GROK_VERIFY_EMAIL/GROK_VERIFY_PASSWORD
   click <css>              click by CSS selector
   click --text <text>      click by accessible name
   click --role R --name N  click by ARIA role + accessible name
@@ -828,7 +937,8 @@ function cmdHelp() {
 Reuse: when this checkout already runs next dev, up drives that server
 instead of starting a second one, and down leaves it running.
 
-Env: CHROME_BIN, GROK_VERIFY_ROOT (default ${ROOT})`)
+Env: CHROME_BIN, GROK_VERIFY_ROOT (default ${ROOT}), GROK_VERIFY_EMAIL and
+     GROK_VERIFY_PASSWORD (for signin)`)
 }
 
 const COMMANDS = {
@@ -839,6 +949,8 @@ const COMMANDS = {
   text: cmdText,
   eval: cmdEval,
   press: cmdPress,
+  type: cmdType,
+  signin: cmdSignIn,
   click: cmdClick,
   snapshot: cmdSnapshot,
   screenshot: cmdScreenshot,
