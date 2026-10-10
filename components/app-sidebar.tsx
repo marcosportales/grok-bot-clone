@@ -1,9 +1,9 @@
-import { UserButton } from "@clerk/nextjs"
 import Link from "next/link"
 
 import { ChatSummary } from "@/components/chat-summary"
 import { SidebarNewMenu } from "@/components/sidebar-new-menu"
 import { SidebarSearch } from "@/components/sidebar-search"
+import { SidebarUserButton } from "@/components/sidebar-user-button"
 import {
   Sidebar,
   SidebarContent,
@@ -14,16 +14,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar"
 import { toChatSummary } from "@/lib/chat"
 import { getChatsWithBot } from "@/queries/bot"
-
-// Clerk's UserButton owns its trigger element and exposes no render or asChild
-// prop, so the SidebarMenuButton size="lg" variant classes are applied to that
-// trigger through the appearance prop. The important flags beat Clerk's own
-// trigger class, which globals.css loads after Tailwind.
-const sidebarMenuButtonClassName =
-  "peer/menu-button flex h-12! w-full! items-center justify-start gap-2 overflow-hidden rounded-md p-2! text-left text-sm! ring-sidebar-ring outline-hidden transition-[width,height,padding] hover:bg-sidebar-accent! hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground"
 
 export async function AppSidebar() {
   // Both lists draw from the same summaries, so a chat keeps one name, one age,
@@ -31,9 +25,9 @@ export async function AppSidebar() {
   const chats = (await getChatsWithBot()).map(toChatSummary)
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex justify-end">
+        <div className="flex justify-end group-data-[collapsible=icon]:justify-start">
           <SidebarNewMenu />
         </div>
         <SidebarSearch chats={chats} />
@@ -50,8 +44,12 @@ export async function AppSidebar() {
                     // then.
                     render={<Link href={`/chats/${chat.id}`} />}
                     size="lg"
-                    // A face beside two lines is taller than size="lg" pins a row.
-                    className="h-auto"
+                    // The icon row is the face alone, so the name it drops is
+                    // what the tooltip puts back.
+                    tooltip={chat.title}
+                    // A face beside two lines is taller than size="lg" pins a
+                    // row, and the collapsed row centers the face on its own.
+                    className="h-auto group-data-[collapsible=icon]:justify-center"
                   >
                     <ChatSummary {...chat} />
                   </SidebarMenuButton>
@@ -64,22 +62,11 @@ export async function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <UserButton
-              showName
-              appearance={{
-                elements: {
-                  rootBox: "w-full!",
-                  userButtonTrigger: sidebarMenuButtonClassName,
-                  userButtonBox: "w-full min-w-0 flex-nowrap gap-2",
-                  userButtonAvatarBox: "order-first size-6! shrink-0",
-                  userButtonOuterIdentifier:
-                    "min-w-0 truncate! ps-0! text-sm! font-medium! text-sidebar-foreground",
-                },
-              }}
-            />
+            <SidebarUserButton />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }

@@ -5,12 +5,20 @@ import type { ChatSummaryData } from "@/lib/chat"
  * The face and the two lines that identify a chat. One block serves both the
  * sidebar's rows and the search results, which wrap it in the item their own
  * list needs: a SidebarMenuButton there, a CommandItem here.
+ *
+ * A collapsed sidebar asks for the face alone, so the two pieces carry their own
+ * icon-mode rules instead of the row reaching into them for a child selector.
+ * The label stays for screen readers, and the tooltip is what a sighted reader
+ * gets in its place.
  */
 function ChatSummary({ avatar, title, age, preview }: ChatSummaryData) {
   return (
     <>
-      <ChatAvatar seed={avatar} />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <ChatAvatar
+        seed={avatar}
+        className="group-data-[collapsible=icon]:size-6"
+      />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 group-data-[collapsible=icon]:sr-only">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate font-semibold">{title}</span>
           <span className="shrink-0 text-xs text-muted-foreground">{age}</span>

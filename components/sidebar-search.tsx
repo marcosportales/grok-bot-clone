@@ -16,6 +16,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Kbd } from "@/components/ui/kbd"
+import { useSidebar } from "@/components/ui/sidebar"
 import type { ChatSummaryData } from "@/lib/chat"
 
 /**
@@ -34,10 +35,15 @@ const SEARCH_KEY = "k"
  * The sidebar header's search field. It is a button wearing an input, so the
  * reader can see the shortcut before pressing it, and it owns the chat palette
  * and its open state, which keeps the sidebar around it a Server Component.
+ *
+ * A collapsed sidebar has no room for the label or the shortcut, so the field
+ * becomes the icon button that opens the same palette.
  */
 function SidebarSearch({ chats }: { chats: ChatSummaryData[] }) {
   const [open, setOpen] = useState(false)
+  const { state } = useSidebar()
   const router = useRouter()
+  const isCollapsed = state === "collapsed"
 
   // ⌘K opens the palette from anywhere on the page. SidebarProvider already
   // claims ⌘B, and the dialog handles its own Escape once it is open.
@@ -56,20 +62,23 @@ function SidebarSearch({ chats }: { chats: ChatSummaryData[] }) {
   return (
     <>
       <Button
-        variant="outline"
-        className={searchTriggerClassName}
+        variant={isCollapsed ? "ghost" : "outline"}
+        size={isCollapsed ? "icon" : "default"}
+        className={isCollapsed ? undefined : searchTriggerClassName}
         aria-keyshortcuts="Meta+K Control+K"
         onClick={() => setOpen(true)}
       >
         {/* No data-icon: Button would answer it with an 8px left padding, and
             the icon takes Input's own 10px. */}
         <SearchIcon />
-        Search
         {/* The button's name is "Search"; the shortcut is read from
             aria-keyshortcuts instead of spelled out. */}
-        <Kbd aria-hidden className="ml-auto">
-          ⌘K
-        </Kbd>
+        <span className={isCollapsed ? "sr-only" : undefined}>Search</span>
+        {!isCollapsed && (
+          <Kbd aria-hidden className="ml-auto">
+            ⌘K
+          </Kbd>
+        )}
       </Button>
       <CommandDialog
         open={open}
