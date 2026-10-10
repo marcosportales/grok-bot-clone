@@ -1,6 +1,6 @@
 import { differenceInSeconds, formatDistanceToNowStrict } from "date-fns"
 
-import type { ChatWithBot } from "@/queries/bot"
+import type { ChatWithBot } from "@/queries/chat"
 
 /**
  * A chat as a row renders it. The sidebar list and the search results both

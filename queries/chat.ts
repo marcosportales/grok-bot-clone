@@ -1,7 +1,7 @@
 import "server-only"
 
 import { auth } from "@clerk/nextjs/server"
-import { asc, desc, eq } from "drizzle-orm"
+import { and, asc, desc, eq } from "drizzle-orm"
 
 import { db } from "@/lib/db"
 import { chatMembers, chats, type Bot, type Chat } from "@/lib/db/schema"
@@ -41,4 +41,42 @@ export async function getChatsWithBot(): Promise<ChatWithBot[]> {
     const bot = chatMembers[0]?.bot
     return bot ? [{ ...chat, bot }] : []
   })
+}
+
+/**
+ * One chat with the same face the list gives it, or null when the id names no
+ * chat of the signed-in user.
+ *
+ * The id arrives from the URL, so it is treated as a caller-supplied value: the
+ * row has to match both the id and the session's `userId`. A chat belonging to
+ * somebody else matches nothing and reads as missing, which is what keeps the
+ * two cases indistinguishable from outside.
+ */
+export async function getChatWithBot(
+  chatId: string
+): Promise<ChatWithBot | null> {
+  const { isAuthenticated, userId } = await auth()
+  if (!isAuthenticated) {
+    return null
+  }
+
+  const row = await db.query.chats.findFirst({
+    where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
+    with: {
+      chatMembers: {
+        limit: 1,
+        orderBy: [asc(chatMembers.joinedAt)],
+        with: { bot: true },
+      },
+    },
+  })
+
+  if (!row) {
+    return null
+  }
+
+  const { chatMembers: members, ...chat } = row
+  const bot = members[0]?.bot
+
+  return bot ? { ...chat, bot } : null
 }

@@ -63,6 +63,15 @@ export const insertBotSchema = createInsertSchema(bots, {
 
 export type InsertBot = z.infer<typeof insertBotSchema>
 
+// An edit sends the same fields as a create, plus the id of the row it changes.
+// The id is not a field the dialog renders: the action pairs it back with the
+// values before parsing, so the two are validated together.
+export const updateBotSchema = insertBotSchema.extend({
+  id: z.string().min(1, "That bot no longer exists."),
+})
+
+export type UpdateBot = z.infer<typeof updateBotSchema>
+
 export const chatKind = pgEnum("chat_kind", ["direct", "group"])
 
 export const chats = pgTable(
