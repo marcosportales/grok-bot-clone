@@ -17,7 +17,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { toChatSummary } from "@/lib/chat"
-import { getChatsWithBot } from "@/queries/bot"
+import { getChatsWithBot } from "@/queries/chat"
 
 export async function AppSidebar() {
   // Both lists draw from the same summaries, so a chat keeps one name, one age,
