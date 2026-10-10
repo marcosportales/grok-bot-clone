@@ -1,6 +1,4 @@
-import Link from "next/link"
-
-import { ChatSummary } from "@/components/chat-summary"
+import { SidebarChats } from "@/components/sidebar-chats"
 import { SidebarNewMenu } from "@/components/sidebar-new-menu"
 import { SidebarSearch } from "@/components/sidebar-search"
 import { SidebarUserButton } from "@/components/sidebar-user-button"
@@ -8,11 +6,8 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
@@ -33,31 +28,7 @@ export async function AppSidebar() {
         <SidebarSearch chats={chats} />
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {chats.map((chat) => (
-                <SidebarMenuItem key={chat.id}>
-                  <SidebarMenuButton
-                    // The chat view does not exist yet, so the row points at
-                    // the route it will live on and lands on the 404 until
-                    // then.
-                    render={<Link href={`/chats/${chat.id}`} />}
-                    size="lg"
-                    // The icon row is the face alone, so the name it drops is
-                    // what the tooltip puts back.
-                    tooltip={chat.title}
-                    // A face beside two lines is taller than size="lg" pins a
-                    // row, and the collapsed row centers the face on its own.
-                    className="h-auto group-data-[collapsible=icon]:justify-center"
-                  >
-                    <ChatSummary {...chat} />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarChats chats={chats} />
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
