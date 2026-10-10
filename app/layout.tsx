@@ -3,7 +3,6 @@ import { shadcn } from "@clerk/ui/themes"
 import { Geist, Geist_Mono } from "next/font/google"
 
 import "./globals.css"
-import { SiteHeader } from "@/components/site-header"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toast"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -37,7 +36,6 @@ export default function RootLayout({
           <ThemeProvider>
             <TooltipProvider>
               <div className="flex min-h-svh flex-col">
-                <SiteHeader />
                 <main className="flex flex-1 flex-col">{children}</main>
               </div>
             </TooltipProvider>
