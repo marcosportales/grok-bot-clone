@@ -95,16 +95,12 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
-    // Embla is an external store: read its current snap on mount and keep it in
-    // sync through reInit/select events rather than a render-time value.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     onSelect(api)
     api.on("reInit", onSelect)
     api.on("select", onSelect)
 
     return () => {
-      api.off("reInit", onSelect)
-      api.off("select", onSelect)
+      api?.off("select", onSelect)
     }
   }, [api, onSelect])
 
