@@ -447,17 +447,36 @@ async function clickPoint(cdp, point) {
 }
 
 const KEYCODES = { d: 68, Tab: 9, Enter: 13, Escape: 27, " ": 32 }
+const MODIFIERS = { alt: 1, ctrl: 2, meta: 4, shift: 8 }
 
-async function pressKey(cdp, key) {
-  const code = KEYCODES[key] ?? (key.length === 1 ? key.toUpperCase().charCodeAt(0) : undefined)
+// `meta+b` is a chord; `b` is one key. The CDP modifiers bitmask is what makes
+// the page's own keydown listener see `metaKey`/`ctrlKey`, so a chord has to be
+// sent as one event rather than as a modifier held across two commands.
+function parseKey(spec) {
+  const parts = spec.split("+")
+  const key = parts.pop()
+  const names = parts.map((name) => MODIFIERS[name])
+  if (names.some((m) => m === undefined)) return null
+  if (!(key in KEYCODES) && !/^[A-Za-z0-9]$/.test(key)) return null
+  return { key, modifiers: names.reduce((a, b) => a | b, 0) }
+}
+
+async function pressKey(cdp, { key, modifiers }) {
+  const code = KEYCODES[key] ?? key.toUpperCase().charCodeAt(0)
   const common = {
+    modifiers,
     key,
-    code: key === " " ? "Space" : key.length === 1 ? `Key${key.toUpperCase()}` : key,
+    code: key === " " ? "Space" : key in KEYCODES ? key : `Key${key.toUpperCase()}`,
     windowsVirtualKeyCode: code,
     nativeVirtualKeyCode: code,
   }
   await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", ...common })
-  if (key.length === 1) await cdp.send("Input.dispatchKeyEvent", { type: "char", text: key, unmodifiedText: key, ...common })
+  // Ctrl and Meta chords are commands, not text. Sending the char event would
+  // type the letter alongside the shortcut the page is listening for.
+  if (key.length === 1 && !(modifiers & (MODIFIERS.ctrl | MODIFIERS.meta))) {
+    const text = modifiers & MODIFIERS.shift ? key.toUpperCase() : key
+    await cdp.send("Input.dispatchKeyEvent", { type: "char", text, unmodifiedText: key, ...common })
+  }
   await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...common })
   await sleep(150)
 }
@@ -490,13 +509,13 @@ const clerkUserId = () =>
 
 // Clerk renders its forms in the browser, so the first read after `up` can land
 // before the bundle does. Wait for the node instead of failing on a cold page.
+// Clerk and React render their controls in the browser, so a lookup that reads
+// the tree once races the bundle and reports a control that is merely late as
+// missing. Wait for the node instead of reading once.
 async function waitForAx(role, name, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs
   for (;;) {
-    const node = await withPage(async (cdp) => {
-      const { nodes } = await axTree(cdp)
-      return findAx(nodes, role, name) ? { found: true } : null
-    })()
+    const node = await withPage(async (cdp) => findAx((await axTree(cdp)).nodes, role, name))()
     if (node) return node
     if (Date.now() >= deadline) return null
     await sleep(300)
@@ -784,13 +803,17 @@ const cmdEval = withPage(async (cdp) => {
 })
 
 const cmdPress = withPage(async (cdp) => {
-  const key = process.argv[3]
-  if (!key) fail("usage: press <key> (e.g. press d)")
-  if (!(key in KEYCODES) && !/^[A-Za-z0-9]$/.test(key)) {
-    fail(`press takes one letter, one digit, or a named key. Use \`type ${JSON.stringify(key)}\` for text.`)
+  const spec = process.argv[3]
+  if (!spec) fail("usage: press <key> (e.g. press d, press meta+b)")
+  const parsed = parseKey(spec)
+  if (!parsed) {
+    fail(
+      `press takes one letter, one digit, a named key, or a modifier+key chord ` +
+        `(meta/ctrl/alt/shift). Use \`type ${JSON.stringify(spec)}\` for text.`
+    )
   }
-  await pressKey(cdp, key)
-  log(`pressed ${key}`)
+  await pressKey(cdp, parsed)
+  log(`pressed ${spec}`)
 })
 
 const cmdClick = withPage(async (cdp) => {
@@ -798,9 +821,8 @@ const cmdClick = withPage(async (cdp) => {
   const name = arg("name")
   if (role || name) {
     if (!role || !name) fail("--role and --name must be used together")
-    const { nodes } = await axTree(cdp)
-    const node = findAx(nodes, role, name)
-    if (!node) fail(`no accessible ${role} named ${JSON.stringify(name)}`)
+    const node = await waitForAx(role, name)
+    if (!node) fail(`no accessible ${role} named ${JSON.stringify(name)} within 10s`)
     if (!node.backendDOMNodeId) fail(`accessible ${role} ${JSON.stringify(name)} has no DOM node`)
     await clickPoint(cdp, await rectForBackendNode(cdp, node.backendDOMNodeId))
     log(`clicked ${role} "${name}"`)
@@ -923,7 +945,7 @@ function cmdHelp() {
   open <path>              navigate the page (default /)
   text [css-selector]      print body or element text
   eval <js>                evaluate JS in the page, print JSON value
-  press <key>              dispatch one key (e.g. press d)
+  press <key>              dispatch one key (e.g. press d, press meta+b, press ctrl+k)
   type <text>              click a field first, then enter the whole string
   signin                   sign in with GROK_VERIFY_EMAIL/GROK_VERIFY_PASSWORD
   click <css>              click by CSS selector
