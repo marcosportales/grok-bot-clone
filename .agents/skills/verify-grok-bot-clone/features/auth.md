@@ -1,129 +1,121 @@
 # Auth
 
-Signed out, the header carries two controls. Clicking `Sign in` opens the Clerk
-sign-in form as a modal over the current page, and `/sign-in` and `/sign-up` render
-the same forms as full pages. Signed in, the two controls become one account
-control that opens an account panel. The root page is itself behind Clerk, so a
-signed-out visitor to `/` never sees these controls there. The signed-in state
-needs a dev-instance test account, which the harness provisions and can sign in
-with, so it is reachable.
+Clerk guards the root page and the chat page. Signed out, a request for either one
+redirects to the sign-in route with a `redirect_url` back to it. The `/sign-in` and
+`/sign-up` routes render Clerk's forms as full pages, and each form links to the
+other. There is no site header and no sign-in modal, so the page form is the only
+way in. Signed in, the account control sits in the sidebar footer, and it opens a
+panel holding `Manage account` and `Sign out`. The shell the control lives in is
+[Sidebar](./sidebar.md).
 
 ## Sub-features
 
-- `auth-gate` signed out, a request for `/` redirects to the sign-in route with a
-  `redirect_url` back to `/`, so `/` shows no header at all in that state.
-- `auth-header` signed out, the header shows the controls `Sign in` and `Sign up`.
-- `auth-modal` clicking `Sign in` opens the sign-in dialog over the current page
-  without changing the URL.
+- `auth-gate` signed out, a request for `/` or `/chats/<id>` redirects to the
+  sign-in route with a `redirect_url` back to the requested path.
 - `auth-signin-route` `/sign-in` renders the sign-in form in the page body.
 - `auth-signup-route` `/sign-up` renders the sign-up form with an email field, a
   password field, and a show-password control.
 - `auth-form-switch` the link at the foot of either form switches to the other
-  form. On a page route it navigates; inside the modal it swaps the form in place.
-- `auth-signed-in` signing in replaces the header controls with the account
-  control `Open user menu`, which opens a panel holding `Manage account` and
+  form.
+- `auth-no-header` no page renders a `Sign in` or `Sign up` button.
+- `auth-account` signing in replaces the signed-out routes with a sidebar footer
+  control named `Open user menu`.
+- `auth-panel` the account control opens a panel holding `Manage account` and
   `Sign out`.
+- `auth-signout` `Sign out` ends the session and returns the reader to the sign-in
+  route.
 - `auth-signed-in-redirect` signed in, `/sign-in` and `/sign-up` both redirect
   back to `/`.
 
 ## How to get to it (user POV)
 
-- Click `Sign in` in the header. The sign-in form opens as a modal.
-- Click `Sign up` in the header. The sign-up form opens as a modal.
 - Open `/` signed out, and follow the redirect to the sign-in route.
-- Open `/sign-in` or `/sign-up` directly. The same forms render as pages.
-- Sign in with the harness test account to reach the account control.
+- Open `/sign-in` or `/sign-up` directly. The forms render as pages.
+- Follow the link at the foot of either form to reach the other one.
+- Sign in with the harness test account to reach the account control in the sidebar
+  footer.
 
 ## Driving it with control-grok
 
 Preconditions:
 
 - An owned instance is healthy: `$CG doctor` reports `doctor: healthy`.
-- Baseline state: `$CG open /sign-in`. Signed out, `/` redirects here anyway, and
-  the auth routes are only reachable signed out; see Gotchas.
+- Signed-out recipes: `$CG open /sign-in`. Signed out, `/` redirects here anyway,
+  and the auth routes are only reachable signed out; see Gotchas.
+- Signed-in recipes need
+  `GROK_VERIFY_EMAIL=... GROK_VERIFY_PASSWORD=... $CG signin`.
 - `ART=$($CG artifacts)` is the artifact directory for this run.
 - `clerk-js` fetches from the network on first render, so allow a moment after a
-  click or navigation before snapshotting.
-- The signed-in recipes need `GROK_VERIFY_EMAIL=... GROK_VERIFY_PASSWORD=... $CG signin`.
+  navigation before snapshotting.
 
-- **The gate.** Run `$CG open /` and `$CG eval "location.pathname + location.search"`.
-  It prints `"/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2F"`.
-- **Header controls.** With the page on `/sign-in`, run
-  `$CG snapshot "$ART/auth-header.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
-  The `banner` contains `button "Sign in"` and `button "Sign up"`.
-- **Modal opens.** Run `$CG click --role button --name "Sign in"`, then `sleep 3`,
-  then
-  `$CG snapshot "$ART/auth-signin-modal.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
-  The tree contains a `dialog` holding `heading "Sign in to grok-bot-clone" level=1`,
-  `button "Close modal"`, `button "Continue with Google"`, a required textbox, and
-  `button "Continue"`.
-- **Modal keeps the page.** Run `$CG eval "location.pathname"`. It prints
-  `"/sign-in"`, the route the modal was opened from.
-- **Modal closes.** Run `$CG click --role button --name "Close modal"`, then
-  `$CG snapshot`. The `dialog` is gone and the page's own sign-in form is back,
-  under `heading "Sign in to grok-bot-clone" level=1` inside `main`.
+- **The gate.** Signed out, run `$CG open /` and
+  `$CG eval "location.pathname + location.search"`. The path starts with
+  `"/sign-in?redirect_url="` and the query decodes to the app URL for `/`, for
+  example `"/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2F"`. The port is
+  whatever this run serves, so assert the shape, not the number.
+- **The chat gate.** Signed out, run `$CG open /chats/anything` and the same read.
+  The path is the sign-in route with a `redirect_url` for that chat.
 - **Sign-in route.** Run `$CG open /sign-in` and `$CG eval "location.pathname"`.
-  The path is `"/sign-in"` and the tree holds the same form inside `main` rather
-  than in a `dialog`, under `heading "Sign in to grok-bot-clone" level=1`.
+  The path is `"/sign-in"`, and a snapshot holds
+  `heading "Sign in to grok-bot-clone" level=1` inside `main`,
+  `button "Continue with Google"`, `textbox "Email address" required=true`,
+  `button "Continue"`, and the links `Sign up` and `Clerk logo`. There is no
+  `banner` and no `Sign in` button.
 - **Sign-up route.** Run `$CG open /sign-up` and `$CG eval "location.pathname"`.
-  The path is `"/sign-up"` and the tree holds
+  The path is `"/sign-up"`, and the tree holds
   `heading "Create your account" level=1`, `textbox "Email address" required=true`,
-  `textbox "Password" required=true`, and `button "Show password"`.
+  `textbox "Password" required=true`, `button "Show password"`,
+  `button "Continue"`, and `link "Sign in"`.
+- **No header control.** Run `$CG click --role button --name "Sign in"`. It fails
+  with `no accessible button named "Sign in" within 10s`, which is the proof that
+  no page carries a header sign-in control.
+- **Form switch.** On `/sign-in`, run `$CG click --role link --name "Sign up"`, then
+  `$CG eval "location.pathname"`. It prints `"/sign-up"`. On `/sign-up`, run
+  `$CG click --role link --name "Sign in"`. It prints `"/sign-in"`.
 - **Visual proof.** Run
   `$CG screenshot "$ART/auth-signin-page.png" --hide "nextjs-portal,next-route-announcer"`
-  on `/sign-in` and `$CG screenshot "$ART/auth-signup-page.png" --hide "nextjs-portal,next-route-announcer"`
+  on `/sign-in` and
+  `$CG screenshot "$ART/auth-signup-page.png" --hide "nextjs-portal,next-route-announcer"`
   on `/sign-up`.
-- **Form switch on a page route.** On `/sign-in`, run
-  `$CG click --role link --name "Sign up"`. Then `$CG eval "location.pathname"`
-  prints `"/sign-up"`.
-- **Form switch inside the modal.** With the page on `/sign-in`, click `Sign in`,
-  wait, then run `$CG click --role link --name "Sign up"`. The path stays
-  `"/sign-in"` and the dialog's heading becomes `Create your account`. Clicking
-  `link "Sign in"` inside that dialog brings the heading back to
-  `Sign in to grok-bot-clone`.
 - **Signed in.** Run `$CG signin`, then `$CG open /` and
-  `$CG eval "location.pathname"`. It prints `"/"`, the `banner` holds
-  `button "Open user menu"` and no `Sign in`.
+  `$CG eval "location.pathname"`. It prints `"/"`. The sidebar footer holds
+  `button "Open user menu"`.
 - **Account panel.** Run `$CG click --role button --name "Open user menu"`, then
   `sleep 2`, then
-  `$CG snapshot "$ART/auth-user-menu.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
+  `$CG snapshot "$ART/auth-account-panel.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
   The tree holds `dialog "Account panel"` with `button "Manage account"` and
   `button "Sign out"`.
-- **Signed-in redirect.** Still signed in, run `$CG open /sign-in` and
-  `$CG eval "location.pathname"`. It prints `"/"`.
+- **Signed-in redirect.** Still signed in, run `$CG open /sign-in`, `sleep 4`, then
+  `$CG eval "location.pathname"`. It prints `"/"`. Do the same for `/sign-up`.
+- **Sign out.** Run `$CG click --role button --name "Open user menu"`, then
+  `$CG click --role button --name "Sign out"`, then `sleep 4` and
+  `$CG eval "({ path: location.pathname + location.search, user: window.Clerk?.user?.id ?? null })"`.
+  `user` is `null` and the path is the sign-in route with a `redirect_url` for `/`.
 
 ## Gotchas
 
-- Clerk renders the modal into a dialog and hides the rest of the page from the
-  accessibility tree. While it is open only the dialog's own contents are
-  reachable, so close it before asserting on the page behind it.
-- The sign-in field has two different accessible names. In the page route the
-  label wins and the field is `textbox "Email address" required=true`; inside the
-  modal it is named by a hint string, read live as
-  `textbox "Example format: name@example.com" required=true`. `--role textbox`
-  alone would be ambiguous, because the page behind the modal keeps its own field.
-- The header keeps showing `Sign in` and `Sign up` on `/sign-in` and `/sign-up`.
-  Those are the header's controls, and the form's own submit button is named
-  `Continue`. Assert on the page's `level=1` heading to tell the two routes apart.
-- The Clerk `dialog` carries no accessible name, so target it by role alone rather
-  than as `dialog "..."`. Assert on the heading inside it instead. The bot dialog
-  and the Clerk account panel do carry names, so they can be targeted as
-  `dialog "New bot"` and `dialog "Account panel"`.
-- `Sign in` and `Sign up` each name both a header `button` and a form `link`. Use
-  `--role button` for the header control and `--role link` for the form's switch.
-- Modal sign-in does not change the URL, so `location.pathname` stays on whichever
-  route the modal was opened from. That page is never `/` while signed out,
-  because `/` redirects. Only the page routes move the path, and the form's own
-  link moves it only where that form renders as a page.
-- A snapshot taken immediately after the click shows no `dialog`, because the
-  Clerk bundle is still loading. That is a timing artifact, not a product bug; wait
-  before snapshotting.
-- `auth-signed-in` needs a dev-instance test account. The harness provisions one
-  and `$CG signin` drives the real form, so this state is reachable without human
-  credentials. Provisioning and the two environment variables are in the README.
+- There is no sign-in modal and no header. An older version of the app had a site
+  header with `Sign in` and `Sign up` buttons that opened the form as a dialog over
+  the page, and committing `08a88e1` deleted it. A recipe built on `banner`,
+  `dialog` without a name, or `button "Sign in"` measures nothing now.
+- `Sign in` and `Sign up` each name a form's footer link. Use `--role link` for
+  those. The header buttons those names used to collide with are gone.
+- The `auth-no-header` recipe asserts an absence by failing to click. That costs the
+  driver's 10-second wait. Read the snapshot for a faster absence check.
+- The signed-in redirect away from the auth routes runs in the browser, so a read
+  taken immediately after the navigation can still report `/sign-in`. Wait, then
+  read.
+- `clerk-js` renders into the tree after the page loads. A snapshot taken
+  immediately after a navigation can be empty of the form. The driver's role clicks
+  wait for their target, but a plain `snapshot` does not.
+- `auth-account` needs a dev-instance test account. The harness provisions one and
+  `$CG signin` drives the real form. Provisioning and the two environment variables
+  are in the [README](./README.md#signing-in).
 - The email-code verification step, the sign-up CAPTCHA, and completing Google
   sign-in still need human credentials or an inbox, and stay unreachable.
-- Signed in, the auth routes bounce to `/`. Sign out from the account panel, or
-  clear the session, before driving the signed-out recipes.
-- Clerk development keys log a warning and a telemetry notice to the console.
-  Both are expected in dev and are not failures.
+- Signed in, the auth routes bounce to `/`. Sign out from the account panel before
+  driving the signed-out recipes.
+- Clerk development keys log a warning and a telemetry notice to the console. Both
+  are expected in dev and are not failures.
+- A test account stops at the `/sign-in/client-trust` step until it is marked
+  `bypass_client_trust`. `$CG signin` reports the path when it stops there.
