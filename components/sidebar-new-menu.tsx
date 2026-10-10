@@ -24,7 +24,15 @@ function SidebarNewMenu() {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="group-data-[collapsible=icon]:size-8"
+            />
+          }
+        >
           <PlusIcon />
           <span className="sr-only">New</span>
         </DropdownMenuTrigger>
