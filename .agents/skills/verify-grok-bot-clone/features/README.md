@@ -10,7 +10,8 @@ page sits behind Clerk, so a signed-out visitor to `/` lands on `/sign-in` and
 never sees the root page at all. Five user-facing behaviors are mapped: the root
 page, bot creation from its dialog, the dark-mode toggle, the Clerk auth surface,
 and the health endpoint. Browser-side persistence is `localStorage`; the only
-other durable state is the `bots` table that bot creation writes. The map covers
+other durable state is the `bots`, `chats`, and `chat_members` tables that bot
+creation writes. The map covers
 everything a user can touch today. Add a feature file whenever a new route,
 control, or command appears.
 

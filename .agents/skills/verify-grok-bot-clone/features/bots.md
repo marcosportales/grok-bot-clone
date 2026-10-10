@@ -3,10 +3,11 @@
 The one flow a signed-in user can complete today is creating a bot. The
 `Create a new bot` button on the root page opens a `New bot` dialog that collects a
 face, a name, and a job, validates them in the browser, and on submit asks the
-`createBot` server action to insert a row for the signed-in user. Success replaces
-the dialog with a toast named after the bot. The page that hosts the trigger is
-[Home page](./home-page.md). Nothing lists the bots yet, so the new row is read back
-from the database rather than from the screen.
+`createBot` server action to write the bot, its direct chat, and the row that
+links them, for the signed-in user. Success replaces the dialog with a toast named
+after the bot. The page that hosts the trigger is [Home page](./home-page.md).
+Nothing lists the bots yet, so the new rows are read back from the database rather
+than from the screen.
 
 ## Sub-features
 
@@ -16,8 +17,9 @@ from the database rather than from the screen.
 - `bots-shuffle` clicking `Shuffle` replaces the face with a new seed.
 - `bots-validate` submitting with `Name` or `Job` empty keeps the dialog open and
   prints an inline error under each empty field. Nothing is sent.
-- `bots-create` a valid submit inserts one row for the signed-in user, closes the
-  dialog, and shows a success toast `<name> is ready`.
+- `bots-create` a valid submit writes the bot, one direct chat for the signed-in
+  user, and one `chat_members` row joining them, closes the dialog, and shows a
+  success toast `<name> is ready`.
 
 ## How to get to it (user POV)
 
@@ -64,23 +66,28 @@ Preconditions:
   `Notifications` region holds a toast headed `Ada is ready` with the line
   `Give it something to work on whenever you like.` Capture it with
   `$CG snapshot "$ART/bots-created.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
-- **Read the row back.** The screen only shows a toast, so query the database for a
-  second view of what the action wrote:
+- **Read the rows back.** The screen only shows a toast, so query the database for a
+  second view of what the action wrote. The join below returns the newest bot with
+  the chat it belongs to and the membership row that joins them:
 
   ```bash
   node -e '
   const fs=require("fs");
   const env=Object.fromEntries(fs.readFileSync(".env.local","utf8").split("\n").filter(l=>l.includes("=")&&!l.trim().startsWith("#")).map(l=>{const i=l.indexOf("=");return [l.slice(0,i).trim(), l.slice(i+1).trim().replace(/^["\x27]|["\x27]$/g,"")]}));
-  process.env.DATABASE_URL=env.DATABASE_URL;
   const {Client}=require("pg");
   (async()=>{const c=new Client({connectionString:env.DATABASE_URL});await c.connect();
-  const r=await c.query("select user_id, name, job, avatar, instructions from bots order by created_at desc limit 1");
-  console.log(JSON.stringify(r.rows[0]));await c.end()})()'
+  const joined=await c.query("select b.user_id, b.name, b.job, b.avatar, b.instructions, c.id as chat_id, c.kind, c.user_id as chat_user_id, cm.bot_id as member_bot_id from bots b left join chat_members cm on cm.bot_id=b.id left join chats c on c.id=cm.chat_id order by b.created_at desc limit 1");
+  console.log(JSON.stringify(joined.rows[0]));
+  const orphans=await c.query("select (select count(*) from bots b where not exists (select 1 from chat_members cm where cm.bot_id=b.id)) as bots_without_member, (select count(*) from chats c where not exists (select 1 from chat_members cm where cm.chat_id=c.id)) as chats_without_member");
+  console.log(JSON.stringify(orphans.rows[0]));await c.end()})()'
   ```
 
   It prints the row with the signed-in `user_id`, `"name":"Ada"`, `"job":"Tutor"`,
-  a non-empty `avatar` seed, and `"instructions":null` because that field was left
-  blank.
+  a non-empty `avatar` seed, `"instructions":null` because that field was left
+  blank, one `chat_id` whose `kind` is `direct` and whose `chat_user_id` matches the
+  bot's `user_id`, and a `member_bot_id` equal to the bot's id. The second line reads
+  `{"bots_without_member":"0","chats_without_member":"0"}`, so no bot was left
+  without a conversation.
 - **Visual proof.** Run
   `$CG screenshot "$ART/bots-dialog.png" --hide "nextjs-portal,next-route-announcer"`
   while the dialog is open.
@@ -98,7 +105,7 @@ Preconditions:
 - Validation is entirely client-side, so a blocked submit sends no request and
   writes no row.
 - The database is the only place a created bot is visible. No route lists bots yet,
-  so a screenshot cannot prove the insert; use the row query above.
+  so a screenshot cannot prove the writes; use the join above.
 - The action takes `userId` from the Clerk session and re-validates the payload, so
   the client cannot choose the owner.
 - Blank `instructions` is stored as `null`, not as an empty string.
