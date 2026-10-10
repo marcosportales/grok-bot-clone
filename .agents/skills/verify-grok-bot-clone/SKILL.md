@@ -1,15 +1,16 @@
 ---
 name: verify-grok-bot-clone
-description: Drive and verify the grok-bot-clone Next.js app (a local web UI) with headless Chrome over the DevTools Protocol. Use when you need to prove the home page renders or the dark-mode hotkey works, capture screenshots or ARIA snapshots, or reproduce a UI bug in this repo without installing a test framework.
+description: Drive and verify the grok-bot-clone Next.js app (a local web UI) with headless Chrome over the DevTools Protocol. Use when you need to prove the Clerk-gated home page renders, that the bot dialog writes a row, or that the dark-mode hotkey works, capture screenshots or ARIA snapshots, or reproduce a UI bug in this repo without installing a test framework.
 ---
 
 # Verify grok-bot-clone
 
-`grok-bot-clone` is a Next.js 16 (App Router, Turbopack) + shadcn/ui starter. Its
-user surfaces today are three page routes (`/`, `/sign-in`, `/sign-up`) and the
-`/api/health` JSON endpoint. This skill launches the app in an owned dev server
-plus an owned headless Chrome, lets you drive it like a user, and captures proof
-artifacts.
+`grok-bot-clone` is a Next.js 16 (App Router, Turbopack) + shadcn/ui app on Clerk
+and Postgres. Its user surfaces are three page routes (`/`, `/sign-in`,
+`/sign-up`) and the `/api/health` JSON endpoint. The root page is behind Clerk, so
+a signed-out visitor lands on `/sign-in` and the root page needs a session. This
+skill launches the app in an owned dev server plus an owned headless Chrome, lets
+you drive it like a user, and captures proof artifacts.
 
 The driver is `scripts/control-grok.mjs` (see **Helpers**). It has no dependencies:
 it uses Node's built-in `fetch` and `WebSocket` to speak CDP to the system Chrome.
@@ -57,8 +58,9 @@ $CG up --port 3222     # use another port
 
 `up` is ready when it prints the run id, the app URL, and both PIDs. It waits for
 `GET /` to return before launching Chrome, and waits for Chrome's DevTools port
-before navigating, so the printed URLs are already serving the app. When it reuses
-a running dev server it says so first, and the dev PID line reads
+before navigating, so the printed URLs are already serving the app. It navigates to
+`/`, which signed out leaves the page on `/sign-in`. When it reuses a running dev
+server it says so first, and the dev PID line reads
 `(reused, left running by down)` instead of `(owned)`.
 
 There is nothing else to build first beyond dependencies: run `pnpm install` once
@@ -83,10 +85,12 @@ $CG doctor
 
 Read-only. Reports the run id, both PIDs and whether they are alive, whether the
 run owns the dev server (`owned=false` means it was reused), the dev server's
-working directory (must be this checkout), the `GET /` status, and whether the
-accessibility tree contains the heading `Project ready!` and the button `Button`.
-Exits non-zero and lists problems when the instance is not worth driving. Run it
-first whenever anything looks off, and before a proof run whose result matters.
+working directory (must be this checkout), the `GET /` status, the path the page is
+on, and one accessibility assertion for that path. Signed out, the page sits on
+`/sign-in` and the assertion is the form's `Sign in to grok-bot-clone` heading;
+signed in it sits on `/` and the assertion is the `Create a new bot` button. Exits
+non-zero and lists problems when the instance is not worth driving. Run it first
+whenever anything looks off, and before a proof run whose result matters.
 
 ## Drive
 
@@ -99,9 +103,11 @@ $CG open /                         # navigate (default /)
 $CG text                           # visible text of <body>
 $CG text "h1"                      # text of a CSS selector
 $CG eval "location.pathname"       # evaluate JS, prints the JSON value
-$CG press d                        # dispatch a key to the focused page
-$CG click --role button --name Button
-$CG click --text "Button"
+$CG press d                        # dispatch one key to the focused page
+$CG type "Ada"                     # click a field first, then enter the string
+$CG signin                         # sign in with GROK_VERIFY_EMAIL/PASSWORD
+$CG click --role button --name "Create a new bot"
+$CG click --text "Shuffle"
 $CG click "[data-slot=button]"
 $CG theme                          # theme state: class, colorScheme, localStorage
 $CG theme --scheme dark            # emulate OS dark preference, then read state
@@ -109,15 +115,24 @@ $CG theme --scheme dark            # emulate OS dark preference, then read state
 
 Selectors to prefer in this app:
 
-- Heading: ARIA `heading` named `Project ready!`.
-- Primary control: ARIA `button` named `Button` (also `[data-slot=button]`).
-- Theme hotkey: the `d` key on a focused page (the hint is the `kbd` element in
-  the page footer).
+- Primary control: ARIA `button` named `Create a new bot`.
+- Sign-in form: ARIA `heading` named `Sign in to grok-bot-clone`, and the two
+  auth-route headings `Create your account` and `Sign in to grok-bot-clone`.
+- Bot dialog: ARIA `dialog` named `New bot`, with textboxes `Name`, `Job`, and
+  `How it should work`.
+- Theme hotkey: the `d` key on a focused page. No hint for it is rendered, so
+  there is no on-page handle.
 
 Rules that keep a run honest:
 
 - Use `--role`/`--name` clicks. Fall back to a CSS selector only when there is no
   accessible name.
+- `press` takes one letter, one digit, or a named key, and refuses punctuation
+  rather than dropping it silently. Text goes through `type`, which needs a
+  preceding `click` on the field to focus it.
+- A locked surface needs a session, not a skipped step. Run `$CG signin` (see
+  [Signing in](./features/README.md#signing-in)) and confirm
+  `$CG eval "location.pathname"` reads `/` before driving anything on the root page.
 - `click --role` scrolls the target into view and dispatches real mouse events, so
   it also proves the control has a non-zero, hit-testable box.
 - `press` delivers keys to `window`; the driver enables focus emulation so the
@@ -144,7 +159,11 @@ Proof standards for this app:
   theme hotkey that means the theme state before, after, and after a reload.
 - Verify side effects alongside what is visible. The dark-mode choice is persisted
   in `localStorage["theme"]`; `press d` must change both the `dark` class and the
-  stored value, and a reload must preserve it.
+  stored value, and a reload must preserve it. A created bot is reported by a
+  toast but stored in the `bots` table; prove it by reading the row, per
+  [Bots](./features/bots.md).
+- `/` needs a session. A signed-out run of a root-page recipe measures the sign-in
+  route instead, so sign in first and check the path.
 - A screenshot alone is weak proof of a state change. Pair it with `theme` output
   and an ARIA snapshot.
 - `--hide "nextjs-portal,next-route-announcer"` removes Next.js dev-tooling
@@ -178,3 +197,6 @@ list. Relevant environment variables:
 - `CHROME_BIN`: Chrome/Chromium executable to launch.
 - `GROK_VERIFY_ROOT`: base directory for run state and artifacts
   (default `/tmp/grok-bot-clone-verify`).
+- `GROK_VERIFY_EMAIL` and `GROK_VERIFY_PASSWORD`: the dev-instance test account
+  `signin` uses. Provisioning is in
+  [features/README.md](./features/README.md#signing-in).

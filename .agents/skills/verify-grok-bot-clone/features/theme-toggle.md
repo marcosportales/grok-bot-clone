@@ -25,10 +25,15 @@ Preconditions:
 - An owned instance is healthy: `$CG doctor` reports `doctor: healthy`.
 - Fresh, choice-free state:
   `$CG eval "localStorage.clear(); 'cleared'"` then `$CG open /`.
+- The theme is app-wide, so the same reads work on any route. Signed out, `$CG open /`
+  lands on `/sign-in`, and that is a fine baseline for this feature.
 - `ART=$($CG artifacts)` is the artifact directory for this run.
 
-- **Baseline is light.** Run `$CG theme`. The output has `"isDark": false`,
-  `"storedTheme": null`.
+- **Choice-free baseline.** Run `$CG theme`. The output has `"storedTheme": null`.
+  `isDark` is not fixed at this point: with no stored choice the page follows the
+  OS, so it reads `false` on a light host and `true` on a dark one. Assert
+  `storedTheme` here, or pin the scheme with `$CG theme --scheme light` in the same
+  command as the read.
 - **Follow the OS preference (dark).** Run `$CG theme --scheme dark`. The output
   has `"isDark": true`, `"prefersDarkAtRead": true`, `"storedTheme": null`. The
   state is read in the same command as the emulation because media emulation does
@@ -55,8 +60,11 @@ Preconditions:
 - `theme --scheme` and its reading must be one command. Chrome resets emulated
   media when the CDP session closes, so `theme --scheme dark` followed by a
   separate `theme` reports light again.
-- `press d` needs a focused page. The driver enables focus emulation on every
-  command; if a run reports no change, run `$CG doctor` before assuming a bug.
+- `press d` needs a focused page, and the listener ignores the key while focus
+  sits in an `INPUT`, `TEXTAREA`, `SELECT`, or contenteditable target. Signed out
+  the page is `/sign-in`, where a focused Clerk field swallows `d`. Click the page
+  body first, or sign in. The driver enables focus emulation on every command, so
+  if a run still reports no change, run `$CG doctor` before assuming a bug.
 - A resolved dark page is not proof of persistence. Assert
   `localStorage["theme"]` via `$CG theme`, then reload and assert again.
 - `localStorage` belongs to the owned Chrome profile. A fresh `up` starts from
