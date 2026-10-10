@@ -1,18 +1,8 @@
 "use client"
 
 import { UserButton } from "@clerk/nextjs"
-import { PlusIcon, UsersIcon } from "lucide-react"
-import { useState } from "react"
 
-import { BotDialog } from "@/components/bot-dialog"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { SidebarNewMenu } from "@/components/sidebar-new-menu"
 import {
   Sidebar,
   SidebarContent,
@@ -30,32 +20,10 @@ const sidebarMenuButtonClassName =
   "peer/menu-button flex h-12! w-full! items-center justify-start gap-2 overflow-hidden rounded-md p-2! text-left text-sm! ring-sidebar-ring outline-hidden transition-[width,height,padding] hover:bg-sidebar-accent! hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground"
 
 export function AppSidebar() {
-  const [botDialogOpen, setBotDialogOpen] = useState(false)
-
   return (
     <Sidebar>
       <SidebarHeader className="flex-row justify-end">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon-sm" />}
-          >
-            <PlusIcon />
-            <span className="sr-only">New</span>
-          </DropdownMenuTrigger>
-          {/* The content inherits the trigger width, which is an icon wide. */}
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setBotDialogOpen(true)}>
-                <PlusIcon />
-                Create new bot
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <UsersIcon />
-                Create group chat
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <SidebarNewMenu />
       </SidebarHeader>
       <SidebarContent />
       <SidebarFooter>
@@ -77,7 +45,6 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      <BotDialog open={botDialogOpen} onOpenChange={setBotDialogOpen} />
     </Sidebar>
   )
 }
