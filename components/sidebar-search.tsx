@@ -76,7 +76,7 @@ function SidebarSearch({ chats }: { chats: ChatSummaryData[] }) {
         <span className={isCollapsed ? "sr-only" : undefined}>Search</span>
         {!isCollapsed && (
           <Kbd aria-hidden className="ml-auto">
-            ⌘K
+            ⌘ K
           </Kbd>
         )}
       </Button>
