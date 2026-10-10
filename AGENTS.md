@@ -55,3 +55,47 @@ thing:
 Only JavaScript and the HTTP API have a pre-10 form. The other six cores were
 released in 2026 and never had one, so any older-looking PHP, Python, Rust, Go,
 Dart or C# API attributed to DiceBear is invented rather than outdated.
+
+## Forms
+
+Per table, one zod schema in `lib/db/schema.ts`, derived from the table with
+`createInsertSchema` from `drizzle-zod`. The form, the action, and the table
+share it, and `z.infer` gives one type for the values:
+
+    export const insertBotSchema = createInsertSchema(bots, {
+      name: (schema) => schema.trim().min(1, "Give your bot a name."),
+      instructions: (schema) => schema.max(2000, "Keep the instructions under 2000 characters."),
+    }).omit({ id: true, userId: true, sandboxId: true, createdAt: true })
+
+    export type InsertBot = z.infer<typeof insertBotSchema>
+
+An override receives the base column schema, and `drizzle-zod` applies the
+optional and nullable wrapping after your override returns. Call `.trim()` and
+`.min()` on that base schema.
+
+Omit the columns the server owns. `userId` comes from the Clerk session, `id`
+and `createdAt` are generated, and `sandboxId` is assigned later. A client can
+never assert them. `drizzle-zod` leaves a generated column optional in the
+insert schema, so a form that picks that value sends it in the payload. The
+dialog's `avatar` seed is one.
+
+Parse the schema again inside the action, because a Server Action is a public
+endpoint that anyone can post to. Take `userId` from `auth()` instead of the
+payload, and return a result such as `{ ok, bot }` instead of throwing. Return
+only what the form renders, because the return value is serialized into the RSC
+payload. Report the outcome with `toast.add()` from `@/components/ui/toast`.
+
+Build the fields from `Field`, `FieldLabel`, `FieldDescription`, and
+`FieldError`, driven by `Controller` and `zodResolver`. The shadcn skill owns
+those component rules in `.agents/skills/shadcn/rules/forms.md`.
+
+A `sm:max-w-md` dialog is 448px wide at the `sm` breakpoint and up, and its
+`p-4` leaves 416px for content. Four option chips at the default `ToggleGroup`
+size overflow that 416px, so a dialog of this width sets `size="sm"`,
+`spacing={1}`, and `className="w-full flex-wrap justify-between"` on its
+`ToggleGroup`.
+
+Measure a row with `getBoundingClientRect` through the `verify-grok-bot-clone`
+skill instead of trusting a screenshot. The home page is behind Clerk, so render
+a form on a temporary unauthenticated route to reach it in a browser, and delete
+that route before committing.
