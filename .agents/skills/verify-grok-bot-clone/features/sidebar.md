@@ -101,6 +101,10 @@ Preconditions:
   One entry per chat carries the bot's name, its age, and its job as the preview.
 - **The open chat is marked.** On `/chats/<id>`, run the same read. The row for that
   chat has `current` equal to `"page"` and every other row is `null`.
+- **Empty list.** Sign in as an account with no chats, open `/`, then run the list
+  read above. It returns `[]`, the tree holds an empty `list` where the rows would
+  be, and the palette reports `No chats found.` The root page still shows its own
+  empty state, so the two are independent.
 - **Collapsed rows keep their names.** Run `$CG press meta+b`, then
   `$CG snapshot`. The chat rows still read `link "<title> <age> <preview>"`, because
   the label moves to screen-reader-only rather than out of the tree.
@@ -144,4 +148,5 @@ Preconditions:
   sends nothing. Reported as a product gap.
 - A brand-new account has no chats. The list then renders no rows and no
   empty-state message, and the palette shows `No chats found.`. Create a bot first
-  for every recipe that needs a row.
+  for every recipe that needs a row, or sign in as a second account that owns no
+  chats to drive `sidebar-empty`.

@@ -90,7 +90,9 @@ Preconditions:
 - **Sign out.** Run `$CG click --role button --name "Open user menu"`, then
   `$CG click --role button --name "Sign out"`, then `sleep 4` and
   `$CG eval "({ path: location.pathname + location.search, user: window.Clerk?.user?.id ?? null })"`.
-  `user` is `null` and the path is the sign-in route with a `redirect_url` for `/`.
+  `user` is `null` and `location.pathname` is `"/sign-in"`. Whether the path also
+  carries a `redirect_url` depends on the route the reader left, so assert the path
+  and the session, not the query.
 
 ## Gotchas
 
