@@ -33,6 +33,9 @@ export default async function Page({
   // The chat's computer is its first member's, the same one the agent's own
   // tools reach for, so the panel and the tools name one machine.
   const [owner] = chat.bots
+  // The screen a group would show is its first member's machine, and that bot's
+  // own chat already shows it, so only a direct chat opens a panel.
+  const canOpen = chat.kind === "direct"
 
   return (
     // The root layout and SidebarProvider set min-h-svh, so flex-1 alone grows
@@ -41,7 +44,7 @@ export default async function Page({
       {/* The desktop panel sits beside the conversation, so the group spans both
           the header and the thread. `flex-1` hands it the height the page root
           holds, whose definite size its own `height: 100%` needs. */}
-      <DesktopPanelProvider>
+      <DesktopPanelProvider canOpen={canOpen}>
         <ResizablePanelGroup
           orientation="horizontal"
           className="min-h-0 flex-1"

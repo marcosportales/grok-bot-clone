@@ -31,6 +31,7 @@ import { SandboxScreen } from "@/components/sandbox-screen"
  */
 type DesktopPanelState = {
   open: boolean
+  canOpen: boolean
   panelRef: RefObject<PanelImperativeHandle | null>
   toggle: () => void
   onResize: (size: PanelSize) => void
@@ -50,7 +51,13 @@ function useDesktopPanel() {
   return context
 }
 
-function DesktopPanelProvider({ children }: { children: ReactNode }) {
+function DesktopPanelProvider({
+  canOpen,
+  children,
+}: {
+  canOpen: boolean
+  children: ReactNode
+}) {
   const panelRef = usePanelRef()
   const [open, setOpen] = useState(false)
   // Collapsing remembers the width the reader last dragged to, so opening the
@@ -61,8 +68,13 @@ function DesktopPanelProvider({ children }: { children: ReactNode }) {
 
   const value: DesktopPanelState = {
     open,
+    canOpen,
     panelRef,
     toggle() {
+      if (!canOpen) {
+        return
+      }
+
       const panel = panelRef.current
 
       if (!panel) {
@@ -124,7 +136,7 @@ function DesktopPanel({
 }
 
 function DesktopPanelToggle() {
-  const { open, toggle } = useDesktopPanel()
+  const { open, canOpen, toggle } = useDesktopPanel()
 
   return (
     // Below `sm` the panel would take more of the width than the conversation
@@ -136,6 +148,7 @@ function DesktopPanelToggle() {
       aria-label="Toggle Desktop"
       aria-expanded={open}
       aria-controls="chat-desktop"
+      disabled={!canOpen}
       onClick={toggle}
     >
       <MonitorIcon />
