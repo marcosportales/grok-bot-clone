@@ -136,7 +136,11 @@ Selectors to prefer in this app:
   `Job`, and `How it should work`, and the delete confirmation
   `alertdialog "Delete <name>?"`.
 - Chat header: a `sectionheader` holding a `heading` and a `button` named after the
-  chat, plus `button "Share desktop"`.
+  chat, plus `button "Toggle Desktop"`.
+- Desktop panel: `button "Toggle Desktop"` opens the panel, `button "Refresh the
+  screen"` asks for the screen again, and the preview is `button "Open <bot>'s
+  screen fullscreen"`. While fullscreen, a `dialog "<bot>'s screen"` holds the
+  screen with `button "Close the fullscreen screen"` beside its title.
 - Auth form: ARIA `heading` named `Sign in to grok-bot-clone`, and the two
   auth-route headings `Create your account` and `Sign in to grok-bot-clone`.
 - Theme hotkey: the `d` key on a focused page. No hint for it is rendered, so
