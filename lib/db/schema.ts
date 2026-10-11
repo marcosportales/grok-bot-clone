@@ -37,9 +37,10 @@ export type NewBot = typeof bots.$inferInsert
 
 // Derived from the table so the database stays the single source of truth. The
 // columns the server owns are dropped, so a client can never assert them:
-// `userId` comes from the Clerk session, `sandboxId` is assigned when a sandbox
-// boots, and `id` and `createdAt` are generated. `avatar` is a generated seed
-// too, which is why it is optional here; the dialog always sends one.
+// `userId` comes from the Clerk session, `sandboxId` is assigned when the
+// sandbox is created, and `id` and `createdAt` are generated. `avatar` is a
+// generated seed too, which is why it is optional here; the dialog always
+// sends one.
 export const insertBotSchema = createInsertSchema(bots, {
   name: (schema) =>
     schema

@@ -13,6 +13,7 @@ import {
   updateBotSchema,
   type InsertBot,
 } from "@/lib/db/schema"
+import { createSandbox, deleteSandbox } from "@/lib/sandbox"
 
 // Action return values are serialized into the RSC payload, so the row stays on
 // the server and this shape carries only what the dialog renders.
@@ -37,6 +38,16 @@ export async function createBot(input: InsertBot): Promise<BotResult> {
 
   const { name, avatar, job, instructions } = parsed.data
 
+  // The sandbox exists before the row, so a failed insert can delete it instead
+  // of leaving a bot that points at nothing. Nothing runs inside the sandbox.
+  let sandboxId: string
+  try {
+    sandboxId = await createSandbox()
+  } catch (error) {
+    console.error("failed to create sandbox", error)
+    return { ok: false, error: "Could not create the bot. Try again." }
+  }
+
   try {
     // One transaction, so a failure cannot leave a bot with no conversation.
     const createdBot = await db.transaction(async (tx) => {
@@ -47,6 +58,7 @@ export async function createBot(input: InsertBot): Promise<BotResult> {
           name,
           avatar,
           job,
+          sandboxId,
           // An untouched textarea is "no instructions", which is null in SQL,
           // not an empty string.
           instructions: instructions?.trim() || null,
@@ -69,6 +81,14 @@ export async function createBot(input: InsertBot): Promise<BotResult> {
     return { ok: true, bot: createdBot }
   } catch (error) {
     console.error("failed to create bot", error)
+    try {
+      await deleteSandbox(sandboxId)
+    } catch (cleanupError) {
+      console.error(
+        "failed to delete sandbox after bot create failed",
+        cleanupError
+      )
+    }
     return { ok: false, error: "Could not create the bot. Try again." }
   }
 }
@@ -130,6 +150,27 @@ export async function deleteBot(botId: string): Promise<BotResult> {
   const { isAuthenticated, userId } = await auth()
   if (!isAuthenticated) {
     return { ok: false, error: "Sign in to delete a bot." }
+  }
+
+  const [existing] = await db
+    .select({ sandboxId: bots.sandboxId })
+    .from(bots)
+    .where(and(eq(bots.id, botId), eq(bots.userId, userId)))
+
+  if (!existing) {
+    return { ok: false, error: "That bot no longer exists." }
+  }
+
+  // Remove the sandbox before the row. If the row delete then fails, a retry
+  // finds the sandbox already gone and can finish deleting the bot. The other
+  // order would drop the only copy of the sandbox id.
+  if (existing.sandboxId) {
+    try {
+      await deleteSandbox(existing.sandboxId)
+    } catch (error) {
+      console.error("failed to delete sandbox", error)
+      return { ok: false, error: "Could not delete the bot. Try again." }
+    }
   }
 
   try {
