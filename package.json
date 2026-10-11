@@ -30,6 +30,7 @@
     "@streamdown/code": "^2.0.0",
     "@streamdown/math": "^1.0.3",
     "@streamdown/mermaid": "^1.0.3",
+    "@trigger.dev/sdk": "4.7.3",
     "@vercel/functions": "^3.9.11",
     "@xyflow/react": "^12.12.0",
     "ai": "^7.0.137",
@@ -69,6 +70,7 @@
   "devDependencies": {
     "@next/env": "^16.4.0",
     "@tailwindcss/postcss": "^4",
+    "@trigger.dev/build": "4.7.3",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
