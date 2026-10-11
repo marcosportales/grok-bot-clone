@@ -18,6 +18,8 @@ is still empty, because nothing sends a message yet. The dialog the title opens 
 - `chat-desktop` the `Toggle Desktop` button opens the desktop panel beside the
   conversation. The panel holds the live screen of the chat's computer, previews
   it, and opens it fullscreen when the preview is clicked.
+- `chat-desktop-group` on a group chat the same button is shown but disabled, so
+  the panel cannot be opened there and no screen is asked for.
 - `chat-screen` the preview shows what the computer is displaying, and a refresh
   control beside it asks for the screen again.
 - `chat-screen-fullscreen` clicking the preview moves that one screen into a
@@ -70,6 +72,20 @@ Preconditions:
   the sandbox desktop rather than a black box or a directory listing. The URL is a
   pre-signed Daytona preview URL, so it is a credential and only ever arrives while
   the panel is open.
+- **A group chat's toggle.** Open a group chat, then run
+  `$CG eval "document.querySelector('button[aria-label=\"Toggle Desktop\"]').disabled"`.
+  It prints `true`, `$CG snapshot` reports `button "Toggle Desktop" disabled=true`
+  beside `heading "<group name>"`, and
+  `$CG eval "getComputedStyle(document.querySelector('button[aria-label=\"Toggle Desktop\"]')).opacity"`
+  prints `0.5` against `1` on a direct chat. A pointer press cannot land:
+  `$CG click --role button --name "Toggle Desktop"` fails with
+  `target is covered at its centre point`. Fire the handler directly instead with
+  `$CG eval "document.querySelector('button[aria-label=\"Toggle Desktop\"]').click()"`,
+  then re-read the panel widths, which still read `chat:<all of it>` and
+  `chat-desktop:0`, re-read `document.querySelector('#chat-desktop iframe')`, which
+  is still `null`, and compare
+  `performance.getEntriesByType('resource').filter(e=>e.initiatorType==='fetch').map(e=>e.name)`
+  before and after, which is the same list.
 - **Open the screen fullscreen.** Run
   `$CG click --role button --name "Open <bot>'s screen fullscreen"`. A
   `dialog "<bot>'s screen"` holds the same screen, and
@@ -136,6 +152,10 @@ Preconditions:
 - The preview is view only. A transparent button covers the screen so a click
   opens the dialog instead of landing on the desktop, and the frame is left out of
   the tab order until it is fullscreen.
+- A group chat's toggle is disabled, and the disabled button variant sets
+  `pointer-events: none`, so `click --role button --name "Toggle Desktop"` fails
+  with `target is covered at its centre point`. On a group that is the pass, not a
+  broken run. Use the `eval` click above to show the handler does nothing.
 - The screen is asked for only once per page and only when the panel is first
   opened, because answering it can start a stopped sandbox. A cold start takes a
   while, and the box reads `Starting the screen` until the URL arrives. Give a
