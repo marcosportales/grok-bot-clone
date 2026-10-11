@@ -6,6 +6,8 @@ import { toEditableBot } from "@/lib/bot"
 import { toChatSummary } from "@/lib/chat"
 import { getChatWithBot } from "@/queries/chat"
 
+import { ChatThread } from "./chat-thread"
+
 export default async function Page({
   params,
 }: {
@@ -27,8 +29,11 @@ export default async function Page({
   const { title } = toChatSummary(chat)
 
   return (
-    <div className="flex flex-1 flex-col">
+    // The root layout and SidebarProvider set min-h-svh, so flex-1 alone grows
+    // the document instead of scrolling.
+    <div className="flex h-svh min-h-0 flex-1 flex-col overflow-hidden">
       <ChatHeader title={title} bot={toEditableBot(chat.bot)} />
+      <ChatThread key={chat.id} chatId={chat.id} />
     </div>
   )
 }
