@@ -4,9 +4,9 @@ import { notFound } from "next/navigation"
 import { ChatHeader } from "@/components/chat-header"
 import { DesktopPanel, DesktopPanelProvider } from "@/components/desktop-panel"
 import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { toEditableBot } from "@/lib/bot"
+import { toBotOption, toEditableBot } from "@/lib/bot"
 import { toChatSummary } from "@/lib/chat"
-import { getChatWithBot } from "@/queries/chat"
+import { getChatWithBots } from "@/queries/chat"
 
 import { ChatThread } from "./chat-thread"
 
@@ -20,15 +20,19 @@ export default async function Page({
   await auth.protect()
 
   const { chatId } = await params
-  const chat = await getChatWithBot(chatId)
+  const chat = await getChatWithBots(chatId)
 
   if (!chat) {
     notFound()
   }
 
-  // The header names the chat the way the sidebar does, and hands the bot's
-  // own answers to the dialog its title opens.
-  const { title } = toChatSummary(chat)
+  // The header names the chat the way the sidebar does. A direct chat hands the
+  // bot's own answers to the dialog its title opens; a group has no single bot
+  // to edit, so it only gets its members as composer choices.
+  const { title, face } = toChatSummary(chat)
+  // The chat's computer is its first member's, the same one the agent's own
+  // tools reach for, so the panel and the tools name one machine.
+  const [owner] = chat.bots
 
   return (
     // The root layout and SidebarProvider set min-h-svh, so flex-1 alone grows
@@ -46,12 +50,20 @@ export default async function Page({
               cannot hide it, and with it the control that closes the panel. */}
           <ResizablePanel id="chat" minSize="30%">
             <div className="flex h-full min-h-0 flex-col">
-              <ChatHeader title={title} bot={toEditableBot(chat.bot)} />
-              <ChatThread key={chat.id} chatId={chat.id} />
+              <ChatHeader
+                title={title}
+                face={face}
+                bot={chat.kind === "direct" ? toEditableBot(owner) : undefined}
+              />
+              <ChatThread
+                key={chat.id}
+                chatId={chat.id}
+                bots={chat.bots.map(toBotOption)}
+              />
             </div>
           </ResizablePanel>
           {/* The panel shows the screen of the chat's computer. */}
-          <DesktopPanel chatId={chat.id} botName={chat.bot.name} />
+          <DesktopPanel chatId={chat.id} botName={owner.name} />
         </ResizablePanelGroup>
       </DesktopPanelProvider>
     </div>

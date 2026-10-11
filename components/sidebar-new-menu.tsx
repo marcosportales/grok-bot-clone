@@ -4,6 +4,7 @@ import { PlusIcon, UsersIcon } from "lucide-react"
 import { useState } from "react"
 
 import { BotDialog } from "@/components/bot-dialog"
+import { GroupChatDialog } from "@/components/group-chat-dialog"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -12,14 +13,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import type { BotOption } from "@/lib/bot"
 
 /**
- * The sidebar header's "New" menu. It owns the bot dialog's open state, which
- * keeps the sidebar around it a Server Component instead of a whole client
- * tree.
+ * The sidebar header's "New" menu. It owns the open state of both dialogs,
+ * which keeps the sidebar around it a Server Component instead of a whole
+ * client tree.
  */
-function SidebarNewMenu() {
+function SidebarNewMenu({ bots }: { bots: BotOption[] }) {
   const [botDialogOpen, setBotDialogOpen] = useState(false)
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false)
 
   return (
     <>
@@ -43,7 +46,7 @@ function SidebarNewMenu() {
               <PlusIcon />
               Create new bot
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setGroupDialogOpen(true)}>
               <UsersIcon />
               Create group chat
             </DropdownMenuItem>
@@ -51,6 +54,11 @@ function SidebarNewMenu() {
         </DropdownMenuContent>
       </DropdownMenu>
       <BotDialog open={botDialogOpen} onOpenChange={setBotDialogOpen} />
+      <GroupChatDialog
+        bots={bots}
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+      />
     </>
   )
 }

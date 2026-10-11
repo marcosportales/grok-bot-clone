@@ -1,4 +1,4 @@
-import { ChatAvatar } from "@/components/chat-avatar"
+import { ChatFaceAvatar } from "@/components/chat-avatar"
 import type { ChatSummaryData } from "@/lib/chat"
 
 /**
@@ -11,11 +11,11 @@ import type { ChatSummaryData } from "@/lib/chat"
  * The label stays for screen readers, and the tooltip is what a sighted reader
  * gets in its place.
  */
-function ChatSummary({ avatar, title, age, preview }: ChatSummaryData) {
+function ChatSummary({ face, title, age, preview }: ChatSummaryData) {
   return (
     <>
-      <ChatAvatar
-        seed={avatar}
+      <ChatFaceAvatar
+        face={face}
         className="group-data-[collapsible=icon]:size-6"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 group-data-[collapsible=icon]:sr-only">

@@ -1,5 +1,6 @@
 import { chat, defaultStorage } from "@trigger.dev/sdk/ai"
-import { asc, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
+import { z } from "zod"
 
 import { chatModel } from "@/lib/ai/model"
 import { bots, chatMembers } from "@/lib/db/schema"
@@ -9,11 +10,14 @@ import { database } from "./db"
 
 // The name, the job, the sandbox, and any instructions the owner wrote live on
 // the bot. Reading them here, on each turn, keeps an edit on the next message
-// and keeps the client from supplying them. The earliest member is the bot the
-// page already shows for this chat.
-async function botInstructions(chatId: string) {
-  const [member] = await database()
+// and keeps the client from supplying them. The chosen bot is picked out of
+// this chat's own members, so an id for a bot that belongs to somebody else, or
+// one that was removed from the group, matches nothing and fails exactly the
+// way a memberless chat already did.
+async function botInstructions(chatId: string, botId: string | undefined) {
+  const members = await database()
     .select({
+      id: bots.id,
       name: bots.name,
       job: bots.job,
       instructions: bots.instructions,
@@ -22,11 +26,11 @@ async function botInstructions(chatId: string) {
     .from(chatMembers)
     .innerJoin(bots, eq(chatMembers.botId, bots.id))
     .where(eq(chatMembers.chatId, chatId))
-    .orderBy(asc(chatMembers.joinedAt))
-    .limit(1)
+
+  const member = members.find((candidate) => candidate.id === botId)
 
   if (!member) {
-    console.error("chat has no bot", { chatId })
+    console.error("chat has no bot", { chatId, botId })
     throw new Error("Something went wrong.")
   }
 
@@ -70,11 +74,14 @@ export const chatAgent = chat.agent({
   id: "chat",
   // The platform transcript is stored under the chat id.
   storage: defaultStorage,
+  // Which bot answers is the client's choice, and the schema is what keeps a
+  // hand-rolled payload from reaching the run as anything else.
+  clientDataSchema: z.object({ botId: z.string().min(1) }),
   // Declared here so each tool's toModelOutput is reapplied when a later turn
   // reloads the transcript. The run below receives this same set.
   tools: ({ chatId }) => computerTools(chatId),
-  run: async ({ chatId, messages, tools, signal, streamText }) => {
-    const instructions = await botInstructions(chatId)
+  run: async ({ chatId, messages, tools, signal, clientData, streamText }) => {
+    const instructions = await botInstructions(chatId, clientData?.botId)
 
     // `system` is the one prompt the managed streamText owns. The AI SDK reads
     // it as the model's instructions, and later injected context is appended

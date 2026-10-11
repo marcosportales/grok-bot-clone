@@ -137,3 +137,33 @@ export type Chat = typeof chats.$inferSelect
 export type NewChat = typeof chats.$inferInsert
 export type ChatMember = typeof chatMembers.$inferSelect
 export type NewChatMember = typeof chatMembers.$inferInsert
+
+// A group's name is its own, and its members are the bots it was created with.
+// `botIds` is not a column: the action writes one `chat_members` row per id, and
+// the schema asks for at least two of them so a group can never look like a
+// direct chat.
+export const insertGroupChatSchema = createInsertSchema(chats)
+  .omit({
+    id: true,
+    userId: true,
+    kind: true,
+    lastMessagePreview: true,
+    lastMessageAt: true,
+    createdAt: true,
+  })
+  .extend({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Name the group.")
+      .max(60, "Keep the name under 60 characters."),
+    botIds: z
+      .array(z.string().min(1))
+      .min(2, "Pick at least two bots.")
+      .refine(
+        (botIds) => new Set(botIds).size === botIds.length,
+        "Pick two different bots."
+      ),
+  })
+
+export type InsertGroupChat = z.infer<typeof insertGroupChatSchema>
