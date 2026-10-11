@@ -5,7 +5,7 @@ import {
   useLoadTranscript,
   useTriggerChatTransport,
 } from "@trigger.dev/sdk/chat/react"
-import type { UIMessage } from "ai"
+import { getToolName, isToolUIPart, type UIMessage } from "ai"
 
 import {
   loadChatTranscript,
@@ -32,6 +32,8 @@ import {
 } from "@/components/ai-elements/prompt-input"
 import { Button } from "@/components/ui/button"
 import type { chatAgent } from "@/trigger/chat"
+
+import { ChatToolPart } from "./chat-tool"
 
 type ChatThreadProps = { chatId: string }
 
@@ -119,20 +121,42 @@ function ChatThreadMessages({
             messages.map((message, index) => {
               const animate =
                 status === "streaming" && index === messages.length - 1
+              const parts = message.parts.filter(
+                (part) =>
+                  !(isToolUIPart(part) && getToolName(part) === "viewScreen")
+              )
+
+              if (
+                !parts.some(
+                  (part) => part.type === "text" || isToolUIPart(part)
+                )
+              ) {
+                return null
+              }
 
               return (
                 <Message from={message.role} key={message.id}>
                   <MessageContent>
-                    {message.parts.map((part, partIndex) =>
-                      part.type === "text" ? (
-                        <MessageResponse
-                          key={partIndex}
-                          {...(animate ? { isAnimating: true } : {})}
-                        >
-                          {part.text}
-                        </MessageResponse>
-                      ) : null
-                    )}
+                    {parts.map((part, partIndex) => {
+                      if (part.type === "text") {
+                        return (
+                          <MessageResponse
+                            key={`${message.id}-text-${partIndex}`}
+                            {...(animate ? { isAnimating: true } : {})}
+                          >
+                            {part.text}
+                          </MessageResponse>
+                        )
+                      }
+
+                      if (isToolUIPart(part)) {
+                        return (
+                          <ChatToolPart key={part.toolCallId} part={part} />
+                        )
+                      }
+
+                      return null
+                    })}
                   </MessageContent>
                 </Message>
               )
