@@ -25,3 +25,13 @@ export function toEditableBot(bot: Bot): EditableBot {
     instructions: bot.instructions,
   }
 }
+
+/**
+ * A bot as the group dialog's picker holds it: the id that says which bot a
+ * choice is, and the two things the chip draws for it.
+ */
+export type BotOption = { id: string; name: string; avatar: string }
+
+export function toBotOption(bot: Bot): BotOption {
+  return { id: bot.id, name: bot.name, avatar: bot.avatar }
+}

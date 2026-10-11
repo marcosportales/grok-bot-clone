@@ -3,7 +3,7 @@
 import { SandboxState, type Sandbox } from "@daytona/sdk"
 
 import { getDaytona } from "@/lib/daytona"
-import { getChatWithBot } from "@/queries/chat"
+import { getChatWithBots } from "@/queries/chat"
 
 // noVNC serves its own client here, and websockify upgrades its connection on
 // the same port. The image ships both, and this is the number they listen on.
@@ -34,8 +34,10 @@ export type ChatScreen =
  * how a reader looks at a computer that is not doing anything yet.
  */
 export async function getChatScreen(chatId: string): Promise<ChatScreen> {
-  const chat = await getChatWithBot(chatId)
-  const sandboxId = chat?.bot.sandboxId
+  const chat = await getChatWithBots(chatId)
+  // The chat's computer is its first member's, the same one `trigger/computer.ts`
+  // hands the agent's own tools, so the panel and the tools show one machine.
+  const sandboxId = chat?.bots[0].sandboxId
 
   if (!sandboxId) {
     return { ok: false, error: "This bot has no screen yet." }

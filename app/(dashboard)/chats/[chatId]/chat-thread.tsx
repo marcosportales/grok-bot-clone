@@ -6,6 +6,7 @@ import {
   useTriggerChatTransport,
 } from "@trigger.dev/sdk/chat/react"
 import { getToolName, isToolUIPart, type UIMessage } from "ai"
+import { useState } from "react"
 
 import {
   loadChatTranscript,
@@ -26,16 +27,24 @@ import {
 import {
   PromptInput,
   PromptInputFooter,
+  PromptInputSelect,
+  PromptInputSelectContent,
+  PromptInputSelectItem,
+  PromptInputSelectTrigger,
+  PromptInputSelectValue,
   PromptInputSubmit,
   PromptInputTextarea,
+  PromptInputTools,
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input"
 import { Button } from "@/components/ui/button"
+import { ChatAvatar } from "@/components/chat-avatar"
+import type { BotOption } from "@/lib/bot"
 import type { chatAgent } from "@/trigger/chat"
 
 import { ChatToolPart } from "./chat-tool"
 
-type ChatThreadProps = { chatId: string }
+type ChatThreadProps = { chatId: string; bots: BotOption[] }
 
 type ChatTransport = ReturnType<
   typeof useTriggerChatTransport<typeof chatAgent>
@@ -43,15 +52,24 @@ type ChatTransport = ReturnType<
 
 type ChatThreadMessagesProps = {
   chatId: string
+  bots: BotOption[]
+  botId: string
+  setBotId: (botId: string) => void
   initialMessages: UIMessage[]
   transport: ChatTransport
 }
 
-function ChatThread({ chatId }: ChatThreadProps) {
+function ChatThread({ chatId, bots }: ChatThreadProps) {
+  // A group chat picks which member answers. The choice lives on the transport
+  // rather than on each message, so the first turn's boot metadata carries it
+  // as well as every later append.
+  const [botId, setBotId] = useState(bots[0].id)
   const transport = useTriggerChatTransport<typeof chatAgent>({
     task: "chat",
     accessToken: ({ chatId }) => mintChatAccessToken(chatId),
-    startSession: ({ chatId }) => startChatSession({ chatId }),
+    startSession: ({ chatId, clientData }) =>
+      startChatSession({ chatId, clientData }),
+    clientData: { botId },
   })
   const {
     messages: initialMessages,
@@ -74,6 +92,9 @@ function ChatThread({ chatId }: ChatThreadProps) {
   return (
     <ChatThreadMessages
       chatId={chatId}
+      bots={bots}
+      botId={botId}
+      setBotId={setBotId}
       initialMessages={initialMessages}
       transport={transport}
     />
@@ -82,6 +103,9 @@ function ChatThread({ chatId }: ChatThreadProps) {
 
 function ChatThreadMessages({
   chatId,
+  bots,
+  botId,
+  setBotId,
   initialMessages,
   transport,
 }: ChatThreadMessagesProps) {
@@ -91,6 +115,10 @@ function ChatThreadMessages({
     transport,
     resume: initialMessages.length > 0,
   })
+
+  // The select lists the ids, and the trigger draws the face and the name of
+  // the bot the current id names.
+  const activeBot = bots.find((bot) => bot.id === botId) ?? bots[0]
 
   function handleSubmit(message: PromptInputMessage) {
     const text = message.text.trim()
@@ -180,7 +208,43 @@ function ChatThreadMessages({
       ) : null}
       <PromptInput className="px-4 pb-4" onSubmit={handleSubmit}>
         <PromptInputTextarea />
+        {/* The picker is a group's alone, and `mr-auto` keeps the submit where
+            a direct chat's footer puts it. */}
         <PromptInputFooter className="justify-end">
+          {bots.length > 1 ? (
+            <PromptInputTools className="mr-auto">
+              {/* The vendored wrapper types the select's value as unknown, so
+                  the chosen id is narrowed before it reaches state. */}
+              <PromptInputSelect
+                value={botId}
+                onValueChange={(value) => {
+                  if (typeof value === "string") {
+                    setBotId(value)
+                  }
+                }}
+              >
+                <PromptInputSelectTrigger aria-label="Choose a bot">
+                  <ChatAvatar seed={activeBot.avatar} className="size-4" />
+                  {/* The vendored wrapper takes the name through the value's
+                      render prop; its own label lookup needs an `items` prop
+                      the wrapper cannot pass. */}
+                  <PromptInputSelectValue>
+                    {(value: unknown) =>
+                      bots.find((bot) => bot.id === value)?.name ?? ""
+                    }
+                  </PromptInputSelectValue>
+                </PromptInputSelectTrigger>
+                <PromptInputSelectContent align="start">
+                  {bots.map((bot) => (
+                    <PromptInputSelectItem key={bot.id} value={bot.id}>
+                      <ChatAvatar seed={bot.avatar} className="size-4" />
+                      {bot.name}
+                    </PromptInputSelectItem>
+                  ))}
+                </PromptInputSelectContent>
+              </PromptInputSelect>
+            </PromptInputTools>
+          ) : null}
           <PromptInputSubmit
             disabled={
               (error != null || status !== "ready") &&
