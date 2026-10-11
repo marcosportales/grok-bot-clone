@@ -133,6 +133,12 @@
       "skillPath": "skills/clerk-webhooks/SKILL.md",
       "computedHash": "7a9fd8c5c956ad8672eef0592e83df89ce1fc78080a0af9cb853abfe2e549b16"
     },
+    "daytona": {
+      "source": "daytona/skills",
+      "sourceType": "github",
+      "skillPath": "skills/daytona/SKILL.md",
+      "computedHash": "d8dd2ff2edb38d2db403b9d342449753be6815e4d99f39a043634f997abdeb98"
+    },
     "migrate-radix-to-base": {
       "source": "shadcn/ui",
       "sourceType": "github",
