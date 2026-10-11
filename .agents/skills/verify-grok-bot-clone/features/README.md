@@ -4,16 +4,17 @@ This directory is the maintained source for verifying the user-facing behavior o
 `grok-bot-clone`. Read this index before driving the app, then use the matching
 feature file as the recipe.
 
-At the current commit the app has three page routes and one endpoint: the root
-page, the `/sign-in` and `/sign-up` routes, and the `/api/health` endpoint. The root
-page sits behind Clerk, so a signed-out visitor to `/` lands on `/sign-in` and
-never sees the root page at all. Five user-facing behaviors are mapped: the root
-page, bot creation from its dialog, the dark-mode toggle, the Clerk auth surface,
-and the health endpoint. Browser-side persistence is `localStorage`; the only
-other durable state is the `bots`, `chats`, and `chat_members` tables that bot
-creation writes. The map covers
-everything a user can touch today. Add a feature file whenever a new route,
-control, or command appears.
+At the current commit the app has four page routes and one endpoint: the root
+page, the chat page at `/chats/<id>`, the `/sign-in` and `/sign-up` routes, and
+the `/api/health` endpoint. The root page and the chat page both sit behind Clerk
+and both render inside the dashboard shell, which is the sidebar. A signed-out
+visitor to either one lands on `/sign-in` and never sees the shell. Seven
+behaviors are mapped: the root page, the sidebar shell, the bot dialog, the chat
+page, the dark-mode toggle, the Clerk auth surface, and the health endpoint.
+Browser-side persistence is `localStorage["theme"]` and the `sidebar_state`
+cookie; the other durable state is the `bots`, `chats`, and `chat_members` tables
+that the bot dialog writes. The map covers everything a user can touch today. Add
+a feature file whenever a new route, control, or command appears.
 
 ## Baseline preconditions
 
@@ -33,13 +34,18 @@ control, or command appears.
   `Create a new bot` trigger once a session exists.
 - Start every recipe from the baseline state unless its preconditions say
   otherwise. Reset the baseline with
-  `$CG eval "localStorage.clear(); 'cleared'"` followed by `$CG open /`.
+  `$CG eval "localStorage.clear(); 'cleared'"` followed by `$CG open /`. Signed in
+  that lands on the root page; signed out it lands on `/sign-in`, where the
+  dashboard shell is absent.
+- The closed search palette leaves a `heading "Search chats"` in the
+  accessibility tree of every dashboard page. See
+  [Sidebar](./sidebar.md#gotchas) before asserting on a dashboard snapshot.
 
 ## Signing in
 
-The root page needs a session. The harness signs in through
-the app's own form with a dev-instance test account, so no human credentials or
-inbox are involved. Provenance: the account lives in the development instance
+The root page and the chat page need a session. The harness signs in through the
+app's own form with a dev-instance test account, so no human credentials or inbox
+are involved. Provenance: the account lives in the development instance
 `clerk whoami` links to this repo.
 
 Provision the account once, then delete it when you no longer want it:
@@ -68,15 +74,23 @@ $CG eval "location.pathname"     # "/" when signed in
 Sign out from the account panel
 (`$CG click --role button --name "Open user menu"` then
 `$CG click --role button --name "Sign out"`) before driving the signed-out
-recipes. Text entry goes through `$CG type`, because `press` handles one letter,
-one digit, or a named key and refuses punctuation.
+recipes. The sign-out lands on `/sign-in`, which is where the signed-out gate
+leaves a visitor to `/`.
 
 ## Driving conventions
 
 - Treat every command as literal. Keep quoted names and flags unchanged.
 - Prefer ARIA role + accessible name over CSS selectors or DOM position.
 - All interaction goes through `control-grok`. Do not add a test framework.
-- State (DOM, theme, scroll) persists between commands; only `up`/`down` reset it.
+- State (DOM, theme, sidebar, scroll) persists between commands; only `up`/`down`
+  reset it.
+- `press` sends one letter, one digit, a named key, or a chord such as `meta+b`,
+  `ctrl+k`, or `shift+Tab`. Text goes through `type`, because `press` refuses
+  punctuation.
+- `click --role` waits up to 10 seconds for the control. A control Clerk or React
+  renders in the browser is late, not missing.
+- Focus a control that carries no accessible name by CSS selector. The search
+  palette's input is `[data-slot=command-input]`.
 
 ## Proof and skip reporting
 
@@ -85,8 +99,9 @@ one digit, or a named key and refuses punctuation.
   visible.
 - State-change proof includes the state before, after, and after a reload.
 - Mutation proof includes a read-only second view of the stored value. For the
-  theme that is `localStorage["theme"]` read back by `$CG theme`; for a created bot
-  it is the `bots` row read back by the query in [Bots](./bots.md).
+  theme that is `localStorage["theme"]` read back by `$CG theme`, for the sidebar
+  it is the `sidebar_state` cookie, and for a bot it is the `bots` row read back
+  by the queries in [Bots](./bots.md).
 - Write artifacts under `$($CG artifacts)` and use `--hide
   "nextjs-portal,next-route-announcer"` so dev tooling does not pollute them.
 - Record the feature ID and entry point used with every artifact.
@@ -112,11 +127,15 @@ required state, commands, and observable proof.
 
 - [Home page](./home-page.md) covers the Clerk gate on `/`, the signed-in empty
   state, the per-request face, and the `Create a new bot` trigger.
-- [Bots](./bots.md) covers the bot dialog, its presets and validation, the insert,
-  and the toast that reports it.
+- [Sidebar](./sidebar.md) covers the shell's rail and its collapse, the `New`
+  menu, the chat search palette, the chat list, and the account menu.
+- [Bot dialog](./bots.md) covers the dialog in create, edit, and delete mode, and
+  the `bots`, `chats`, and `chat_members` rows each mode changes.
+- [Chat page](./chat-page.md) covers `/chats/<id>`, its header, the button that
+  edits the chat's bot, the share placeholder, and the missing-chat page.
 - [Dark mode toggle](./theme-toggle.md) covers the `d` hotkey, system-preference
   following, and persistence across reloads.
-- [Auth](./auth.md) covers the header controls, the sign-in modal, the `/sign-in`
-  and `/sign-up` routes, and the signed-in account panel.
+- [Auth](./auth.md) covers the gate, the `/sign-in` and `/sign-up` routes, and the
+  signed-in account panel.
 - [API health](./api-health.md) covers the `/api/health` status, body, and content
   type.

@@ -1,16 +1,17 @@
 ---
 name: verify-grok-bot-clone
-description: Drive and verify the grok-bot-clone Next.js app (a local web UI) with headless Chrome over the DevTools Protocol. Use when you need to prove the Clerk-gated home page renders, that the bot dialog writes a row, or that the dark-mode hotkey works, capture screenshots or ARIA snapshots, or reproduce a UI bug in this repo without installing a test framework.
+description: Drive and verify the grok-bot-clone Next.js app (a local web UI) with headless Chrome over the DevTools Protocol. Use when you need to prove the Clerk-gated home page or chat page renders, that the sidebar shell works, that the bot dialog creates, edits, and deletes a row, or that the dark-mode hotkey works, capture screenshots or ARIA snapshots, or reproduce a UI bug in this repo without installing a test framework.
 ---
 
 # Verify grok-bot-clone
 
 `grok-bot-clone` is a Next.js 16 (App Router, Turbopack) + shadcn/ui app on Clerk
-and Postgres. Its user surfaces are three page routes (`/`, `/sign-in`,
-`/sign-up`) and the `/api/health` JSON endpoint. The root page is behind Clerk, so
-a signed-out visitor lands on `/sign-in` and the root page needs a session. This
-skill launches the app in an owned dev server plus an owned headless Chrome, lets
-you drive it like a user, and captures proof artifacts.
+and Postgres. Its user surfaces are four page routes (`/`, `/chats/<id>`,
+`/sign-in`, `/sign-up`) and the `/api/health` JSON endpoint. The root page and the
+chat page are behind Clerk and render inside a sidebar shell, so a signed-out
+visitor lands on `/sign-in` and both pages need a session. This skill launches the
+app in an owned dev server plus an owned headless Chrome, lets you drive it like a
+user, and captures proof artifacts.
 
 The driver is `scripts/control-grok.mjs` (see **Helpers**). It has no dependencies:
 it uses Node's built-in `fetch` and `WebSocket` to speak CDP to the system Chrome.
@@ -104,10 +105,14 @@ $CG text                           # visible text of <body>
 $CG text "h1"                      # text of a CSS selector
 $CG eval "location.pathname"       # evaluate JS, prints the JSON value
 $CG press d                        # dispatch one key to the focused page
+$CG press meta+b                   # a modifier chord, here: toggle the sidebar
+$CG press ctrl+k                   # toggle the search palette
 $CG type "Ada"                     # click a field first, then enter the string
 $CG signin                         # sign in with GROK_VERIFY_EMAIL/PASSWORD
 $CG click --role button --name "Create a new bot"
+$CG click --role menuitem --name "Create new bot"
 $CG click --text "Shuffle"
+$CG click "[data-slot=command-input]"   # the palette's unnamed combobox
 $CG click "[data-slot=button]"
 $CG theme                          # theme state: class, colorScheme, localStorage
 $CG theme --scheme dark            # emulate OS dark preference, then read state
@@ -115,11 +120,25 @@ $CG theme --scheme dark            # emulate OS dark preference, then read state
 
 Selectors to prefer in this app:
 
-- Primary control: ARIA `button` named `Create a new bot`.
-- Sign-in form: ARIA `heading` named `Sign in to grok-bot-clone`, and the two
+- Root trigger: ARIA `button` named `Create a new bot`.
+- Sidebar rail: ARIA `button` named `Toggle Sidebar`, and the `[data-slot=sidebar]`
+  element whose `data-state` reads `expanded` or `collapsed`.
+- New menu: ARIA `button` named `New`, holding `menuitem` entries
+  `Create new bot` and `Create group chat`.
+- Search: ARIA `button` named `Search`, and the palette `dialog` named
+  `Search chats`. Its input is an unnamed `combobox`, so focus it with
+  `[data-slot=command-input]`.
+- Chat list: `link` rows named `<title> <age> <preview>`, with `aria-current=page`
+  on the open chat.
+- Account: ARIA `button` named `Open user menu`, and `dialog "Account panel"` with
+  `Manage account` and `Sign out`.
+- Bot dialog: ARIA `dialog` named `New bot` or `Edit bot`, with textboxes `Name`,
+  `Job`, and `How it should work`, and the delete confirmation
+  `alertdialog "Delete <name>?"`.
+- Chat header: a `sectionheader` holding a `heading` and a `button` named after the
+  chat, plus `button "Share desktop"`.
+- Auth form: ARIA `heading` named `Sign in to grok-bot-clone`, and the two
   auth-route headings `Create your account` and `Sign in to grok-bot-clone`.
-- Bot dialog: ARIA `dialog` named `New bot`, with textboxes `Name`, `Job`, and
-  `How it should work`.
 - Theme hotkey: the `d` key on a focused page. No hint for it is rendered, so
   there is no on-page handle.
 
@@ -127,14 +146,18 @@ Rules that keep a run honest:
 
 - Use `--role`/`--name` clicks. Fall back to a CSS selector only when there is no
   accessible name.
-- `press` takes one letter, one digit, or a named key, and refuses punctuation
-  rather than dropping it silently. Text goes through `type`, which needs a
-  preceding `click` on the field to focus it.
+- `press` takes one letter, one digit, a named key, or a chord such as `meta+b`,
+  `ctrl+k`, or `shift+Tab`, and refuses punctuation rather than dropping it
+  silently. A `ctrl` or `meta` chord sends no character text, because the page is
+  listening for the shortcut. Text goes through `type`, which needs a preceding
+  `click` on the field to focus it.
 - A locked surface needs a session, not a skipped step. Run `$CG signin` (see
   [Signing in](./features/README.md#signing-in)) and confirm
   `$CG eval "location.pathname"` reads `/` before driving anything on the root page.
 - `click --role` scrolls the target into view and dispatches real mouse events, so
-  it also proves the control has a non-zero, hit-testable box.
+  it also proves the control has a non-zero, hit-testable box. It waits up to 10
+  seconds for the control, because Clerk and React render theirs after the page
+  loads, and a control that is merely late must not read as missing.
 - `press` delivers keys to `window`; the driver enables focus emulation so the
   headless page behaves as focused.
 - `theme --scheme dark|light` must read the state in the same invocation as the
@@ -159,11 +182,16 @@ Proof standards for this app:
   theme hotkey that means the theme state before, after, and after a reload.
 - Verify side effects alongside what is visible. The dark-mode choice is persisted
   in `localStorage["theme"]`; `press d` must change both the `dark` class and the
-  stored value, and a reload must preserve it. A created bot is reported by a
-  toast but stored in the `bots` table; prove it by reading the row, per
+  stored value, and a reload must preserve it. The sidebar's collapse is persisted
+  in the `sidebar_state` cookie. A bot is reported by a toast but stored in the
+  `bots` table; prove it by reading the row, per
   [Bots](./features/bots.md).
-- `/` needs a session. A signed-out run of a root-page recipe measures the sign-in
-  route instead, so sign in first and check the path.
+- A dashboard page's accessibility tree carries a stray `heading "Search chats"`
+  from the closed command palette. It is not a dialog. Check the `dialog` role or
+  `[data-slot=dialog-content]` before reporting an open palette, and see
+  [Sidebar](./features/sidebar.md#gotchas).
+- `/` and `/chats/<id>` need a session. A signed-out run of a recipe on either one
+  measures the sign-in route instead, so sign in first and check the path.
 - A screenshot alone is weak proof of a state change. Pair it with `theme` output
   and an ARIA snapshot.
 - `--hide "nextjs-portal,next-route-announcer"` removes Next.js dev-tooling
@@ -188,6 +216,10 @@ ls /tmp/grok-bot-clone-verify/artifacts/<run-id>/
 
 Never kill by process name (`pkill -f "next dev"` also matches your own shell).
 Kill what you started: use `$CG down`, which uses the recorded PIDs.
+
+A run that creates a bot leaves rows in `bots`, `chats`, and `chat_members`, and a
+sidebar row in every later run. Delete what the run created with the delete recipe
+in [Bots](./features/bots.md).
 
 ## Helpers
 
