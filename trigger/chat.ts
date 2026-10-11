@@ -1,7 +1,7 @@
-import { google } from "@ai-sdk/google"
 import { chat, defaultStorage } from "@trigger.dev/sdk/ai"
 import { asc, eq } from "drizzle-orm"
 
+import { chatModel } from "@/lib/ai/model"
 import { bots, chatMembers } from "@/lib/db/schema"
 
 import { computerTools } from "./computer"
@@ -80,7 +80,7 @@ export const chatAgent = chat.agent({
     // it as the model's instructions, and later injected context is appended
     // to it. Passing `instructions` as well would replace that prompt.
     return streamText({
-      model: google("gemini-3.8-flash"),
+      model: chatModel(),
       system: instructions,
       messages,
       tools,
