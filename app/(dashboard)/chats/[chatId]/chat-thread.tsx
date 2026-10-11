@@ -1,8 +1,17 @@
 "use client"
 
 import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
+import {
+  useLoadTranscript,
+  useTriggerChatTransport,
+} from "@trigger.dev/sdk/chat/react"
+import type { UIMessage } from "ai"
 
+import {
+  loadChatTranscript,
+  mintChatAccessToken,
+  startChatSession,
+} from "@/actions/chat"
 import {
   Conversation,
   ConversationContent,
@@ -22,15 +31,63 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input"
 import { Button } from "@/components/ui/button"
+import type { chatAgent } from "@/trigger/chat"
 
 type ChatThreadProps = { chatId: string }
 
+type ChatTransport = ReturnType<
+  typeof useTriggerChatTransport<typeof chatAgent>
+>
+
+type ChatThreadMessagesProps = {
+  chatId: string
+  initialMessages: UIMessage[]
+  transport: ChatTransport
+}
+
 function ChatThread({ chatId }: ChatThreadProps) {
+  const transport = useTriggerChatTransport<typeof chatAgent>({
+    task: "chat",
+    accessToken: ({ chatId }) => mintChatAccessToken(chatId),
+    startSession: ({ chatId }) => startChatSession({ chatId }),
+  })
+  const {
+    messages: initialMessages,
+    isLoading,
+    error,
+  } = useLoadTranscript(chatId, loadChatTranscript, { transport })
+
+  if (isLoading) {
+    return <div className="flex min-h-0 flex-1 flex-col" />
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center px-4">
+        <p className="text-sm text-destructive">Something went wrong.</p>
+      </div>
+    )
+  }
+
+  return (
+    <ChatThreadMessages
+      chatId={chatId}
+      initialMessages={initialMessages}
+      transport={transport}
+    />
+  )
+}
+
+function ChatThreadMessages({
+  chatId,
+  initialMessages,
+  transport,
+}: ChatThreadMessagesProps) {
   const { messages, sendMessage, status, stop, error, regenerate } = useChat({
     id: chatId,
-    transport: new DefaultChatTransport({
-      api: `/api/chats/${chatId}/messages`,
-    }),
+    messages: initialMessages,
+    transport,
+    resume: initialMessages.length > 0,
   })
 
   function handleSubmit(message: PromptInputMessage) {
@@ -41,6 +98,11 @@ function ChatThread({ chatId }: ChatThreadProps) {
     }
 
     sendMessage({ text })
+  }
+
+  function handleStop() {
+    stop()
+    void transport.stopGeneration(chatId)
   }
 
   return (
@@ -101,7 +163,7 @@ function ChatThread({ chatId }: ChatThreadProps) {
               status !== "submitted" &&
               status !== "streaming"
             }
-            onStop={stop}
+            onStop={handleStop}
             status={status}
           />
         </PromptInputFooter>
