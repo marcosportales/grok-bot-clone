@@ -1,13 +1,14 @@
-import { MonitorIcon } from "lucide-react"
-
+import { DesktopPanelToggle } from "@/components/desktop-panel"
 import { EditBotButton } from "@/components/edit-bot-button"
-import { Button } from "@/components/ui/button"
 import type { EditableBot } from "@/lib/bot"
 
 /**
  * The strip above a conversation. It names the chat and holds the controls for
- * it, and it is a Server Component because the one control that does something
- * is the bot's dialog, which keeps its own state and takes the bot with it.
+ * it.
+ *
+ * It stays a Server Component. The bot's dialog and the desktop toggle each
+ * carry their own state, so the header renders them as Client Components and
+ * passes neither of them anything.
  *
  * The name is the one the sidebar shows, worked out once in `toChatSummary`, so
  * a chat cannot be called two things on one screen.
@@ -18,10 +19,7 @@ function ChatHeader({ title, bot }: { title: string; bot: EditableBot }) {
       <h1 className="flex min-w-0 items-center">
         <EditBotButton title={title} bot={bot} />
       </h1>
-      {/* Nothing shares a desktop yet, so the control is a placeholder. */}
-      <Button variant="ghost" size="icon" aria-label="Share desktop">
-        <MonitorIcon />
-      </Button>
+      <DesktopPanelToggle />
     </header>
   )
 }

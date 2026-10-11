@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 
 import { ChatHeader } from "@/components/chat-header"
+import { DesktopPanel, DesktopPanelProvider } from "@/components/desktop-panel"
+import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { toEditableBot } from "@/lib/bot"
 import { toChatSummary } from "@/lib/chat"
 import { getChatWithBot } from "@/queries/chat"
@@ -32,8 +34,26 @@ export default async function Page({
     // The root layout and SidebarProvider set min-h-svh, so flex-1 alone grows
     // the document instead of scrolling.
     <div className="flex h-svh min-h-0 flex-1 flex-col overflow-hidden">
-      <ChatHeader title={title} bot={toEditableBot(chat.bot)} />
-      <ChatThread key={chat.id} chatId={chat.id} />
+      {/* The desktop panel sits beside the conversation, so the group spans both
+          the header and the thread. `flex-1` hands it the height the page root
+          holds, whose definite size its own `height: 100%` needs. */}
+      <DesktopPanelProvider>
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="min-h-0 flex-1"
+        >
+          {/* The conversation keeps a floor of its own, so dragging or Home
+              cannot hide it, and with it the control that closes the panel. */}
+          <ResizablePanel id="chat" minSize="30%">
+            <div className="flex h-full min-h-0 flex-col">
+              <ChatHeader title={title} bot={toEditableBot(chat.bot)} />
+              <ChatThread key={chat.id} chatId={chat.id} />
+            </div>
+          </ResizablePanel>
+          {/* The panel shows the screen of the chat's computer. */}
+          <DesktopPanel chatId={chat.id} botName={chat.bot.name} />
+        </ResizablePanelGroup>
+      </DesktopPanelProvider>
     </div>
   )
 }

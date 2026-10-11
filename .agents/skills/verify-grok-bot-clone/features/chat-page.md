@@ -4,7 +4,7 @@ A chat lives at `/chats/<id>` inside the dashboard shell. The page is behind
 Clerk, and the id is matched against the signed-in user, so an id you do not own
 reads as missing rather than as somebody else's chat. Signed in, the page shows a
 header that names the chat and holds the two controls for it: the title itself,
-which opens the bot's edit dialog, and a share placeholder. The conversation body
+which opens the bot's edit dialog, and the desktop toggle. The conversation body
 is still empty, because nothing sends a message yet. The dialog the title opens is
 [Bot dialog](./bots.md), and the list the id comes from is
 [Sidebar](./sidebar.md).
@@ -15,7 +15,15 @@ is still empty, because nothing sends a message yet. The dialog the title opens 
   route with a `redirect_url` back to the chat.
 - `chat-header` the page shows a header that names the chat and holds its controls.
 - `chat-edit` the title button opens the `Edit bot` dialog for that chat's bot.
-- `chat-share` the `Share desktop` button is a placeholder that sends nothing.
+- `chat-desktop` the `Toggle Desktop` button opens the desktop panel beside the
+  conversation. The panel holds the live screen of the chat's computer, previews
+  it, and opens it fullscreen when the preview is clicked.
+- `chat-screen` the preview shows what the computer is displaying, and a refresh
+  control beside it asks for the screen again.
+- `chat-screen-fullscreen` clicking the preview moves that one screen into a
+  dialog that fills the window, where it takes the keyboard and the mouse.
+- `chat-screen-missing` a chat whose computer has no sandbox shows `No screen`
+  instead of an empty box.
 - `chat-missing` an unknown id renders the not-found page, with the shell still
   around it.
 
@@ -44,16 +52,38 @@ Preconditions:
 - **Header.** Run
   `$CG snapshot "$ART/chat-page.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
   The tree holds a `sectionheader` with `heading "<title>" level=1` around
-  `button "<title>"`, and beside it `button "Share desktop"`. `<title>` is the
-  bot's name for a direct chat.
+  `button "<title>"`, and beside it `button "Toggle Desktop"` carrying
+  `expanded=false`. `<title>` is the bot's name for a direct chat.
 - **Edit the bot.** Run `$CG click --role button --name "<title>"`, then
   `$CG eval "!!document.querySelector('#edit-bot-form')"`. It prints `true`, and a
   `dialog "Edit bot"` holds the bot's own answers.
-- **Share sends nothing.** Run
-  `$CG click --role button --name "Share desktop"`, then
-  `$CG eval "({ path: location.pathname, dialogs: document.querySelectorAll('[role=dialog]').length, toasts: document.querySelectorAll('[data-slot=toast]').length })"`.
-  The click exits `0`, the path is unchanged, and no dialog or toast appears. This
-  control is a placeholder; see Gotchas.
+- **Toggle the desktop panel.** Run `$CG click --role button --name "Toggle Desktop"`,
+  then
+  `$CG eval "[...document.querySelectorAll('[data-panel]')].map((p) => p.id + ':' + Math.round(p.getBoundingClientRect().width))"`,
+  then the same click again. Closed, the widths read `chat:<all of it>` and
+  `chat-desktop:0` with no separator in the tree. Open, `chat-desktop` holds 40% of
+  the group and a `separator` appears between the two. `$CG snapshot` reports
+  `expanded=true` on the button while the panel is open.
+- **Watch the screen.** With the panel open, run
+  `$CG eval "document.querySelector('#chat-desktop iframe')?.src"`. It prints a
+  `https://6080-<subdomain>.daytonaproxy01.eu/vnc.html?...` URL, and the frame shows
+  the sandbox desktop rather than a black box or a directory listing. The URL is a
+  pre-signed Daytona preview URL, so it is a credential and only ever arrives while
+  the panel is open.
+- **Open the screen fullscreen.** Run
+  `$CG click --role button --name "Open <bot>'s screen fullscreen"`. A
+  `dialog "<bot>'s screen"` holds the same screen, and
+  `$CG eval "document.querySelector('#chat-desktop iframe') === null"` prints
+  `true`: the one frame has moved into the dialog rather than a second one being
+  built. Count frames before and after to prove nothing reconnected, per Gotchas.
+- **The dialog keeps its screen.** Run `$CG press Escape`, then `$CG press Enter`,
+  then any letter. The dialog stays open and the keys reach the computer instead.
+  `$CG eval "!!document.querySelector('[data-slot=dialog-content]')"` still prints
+  `true`. Leave by
+  `$CG click --role button --name "Close the fullscreen screen"`.
+- **A chat with no computer.** Open a chat whose first member has no sandbox, then
+  open the panel. The box reads `No screen` with `This bot has no screen yet.`, and
+  `$CG eval "!!document.querySelector('#chat-desktop iframe')"` prints `false`.
 - **Missing id.** Run `$CG open /chats/does-not-exist-xyz`, then `$CG text`. Stdout
   contains `404` and `This page could not be found.`, and it still contains the
   sidebar's `New` and `Search`, so the shell stayed around the missing page.
@@ -82,3 +112,31 @@ Preconditions:
   See [Sidebar](./sidebar.md#gotchas).
 - The page stops after the header. There is no message list and no composer, so a
   recipe that looks for a conversation finds none.
+- `control-grok`'s `press` accepts one letter, one digit, `d`, `Tab`, `Enter`,
+  `Escape`, space, or a modifier chord, so it cannot send the arrow keys, `Home`,
+  `End`, or `F6` that resize a separator. Until it can, drive a resize by
+  dispatching the key at the focused separator with `$CG eval`, for example
+  `document.querySelector('[data-slot=resizable-handle]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }))`.
+  Measured on a 1024px group: one arrow moves the boundary 5%, and `Home` takes
+  the split to the chat panel's own `minSize`.
+- `Enter` on the chat page's separator does nothing. The library collapses the
+  first panel beside the separator, which is the conversation, and the
+  conversation is not collapsible.
+- The screen is one iframe serving two hosts, so a plain DOM move would tear it
+  down and reconnect the VNC. It is moved with `Element.moveBefore`, which
+  preserves it. To prove a change did not break that, tag iframes as they are
+  created and count their `load` events:
+  `$CG eval "(() => { window.__f = 0; const c = document.createElement.bind(document); document.createElement = (t, ...r) => { const e = c(t, ...r); if (String(t).toLowerCase() === 'iframe') { window.__f += 1; window.__e = e; let n = 0; e.addEventListener('load', () => { e.dataset.n = String(++n) }) } return e }; return 'tagged' })()"`.
+  One frame and `data-n` of `1` after opening the panel, opening the dialog, and
+  closing it again is the pass. Two of either means the connection restarted.
+- The fullscreen dialog ignores every close the dialog itself would take, so
+  Escape, an outside press, and the theme's `d` hotkey do nothing while it is
+  open. That is deliberate: those keys belong to the computer on screen. The
+  close button is the only way out.
+- The preview is view only. A transparent button covers the screen so a click
+  opens the dialog instead of landing on the desktop, and the frame is left out of
+  the tab order until it is fullscreen.
+- The screen is asked for only once per page and only when the panel is first
+  opened, because answering it can start a stopped sandbox. A cold start takes a
+  while, and the box reads `Starting the screen` until the URL arrives. Give a
+  cold run a minute before calling it broken.
