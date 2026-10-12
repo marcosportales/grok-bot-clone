@@ -1,9 +1,11 @@
 import { chat, defaultStorage } from "@trigger.dev/sdk/ai"
+import { stepCountIs } from "ai"
 import { z } from "zod"
 
 import { chatModel } from "@/lib/ai/model"
+import { memoryFile } from "@/lib/memory"
 
-import { computerTools } from "./computer"
+import { botMemory, computerTools, memoryTools } from "./computer"
 import {
   groupFor,
   handoffTools,
@@ -19,6 +21,14 @@ const sandboxTools = [
   "Call one tool and wait for its result before you call another. A click and a look at the screen are separate steps.",
   "Prefer bash, readFile, writeFile, and listFiles for anything that does not need the desktop.",
 ].join("\n\n")
+
+const memoryInstructions = (memory: string) =>
+  [
+    `You remember earlier conversations. Your memory is ${memoryFile} on your own computer, and it is yours alone. It stays with you from chat to chat, so what the user tells you in a private conversation is still with you in a group chat.`,
+    `What you remember about this user right now:\n\n${memory.trim() || "(nothing yet)"}`,
+    "Call remember with one short note when the user tells you something worth keeping: a preference, a fact about them, a decision, something they ask you to remember. Use writeMemory only to tidy the file, or to drop something the user asked you to forget. Write back everything still worth keeping.",
+    "Only claim to remember something written above or said in this conversation. If the user asks about something you do not have, say so instead of guessing.",
+  ].join("\n\n")
 
 function sandboxInstructions(group: ChatGroup, member: GroupMember) {
   const owner = group.members[0]
@@ -52,7 +62,7 @@ function groupInstructions(group: ChatGroup, member: GroupMember) {
   ].join("\n\n")
 }
 
-async function instructionsFor(chatId: string, botId: string | undefined) {
+async function turnFor(chatId: string, botId: string | undefined) {
   const group = await groupFor(chatId)
   const member = group.members.find((candidate) => candidate.id === botId)
 
@@ -60,6 +70,12 @@ async function instructionsFor(chatId: string, botId: string | undefined) {
     console.error("chat has no bot", { chatId, botId })
     throw new Error("Something went wrong.")
   }
+
+  return { group, member }
+}
+
+async function instructionsFor(chatId: string, botId: string | undefined) {
+  const { group, member } = await turnFor(chatId, botId)
 
   const sections = [
     `Your name is ${member.name}.`,
@@ -75,6 +91,10 @@ async function instructionsFor(chatId: string, botId: string | undefined) {
     sections.push(sandboxInstructions(group, member))
   }
 
+  if (member.sandboxId) {
+    sections.push(memoryInstructions(await botMemory(member.sandboxId)))
+  }
+
   const instructions = member.instructions?.trim()
   if (instructions) {
     sections.push(`How you should work:\n${instructions}`)
@@ -84,11 +104,12 @@ async function instructionsFor(chatId: string, botId: string | undefined) {
 }
 
 async function chatTools(chatId: string, botId: string | undefined) {
-  const group = await groupFor(chatId)
+  const { group, member } = await turnFor(chatId, botId)
 
   return {
     ...computerTools(chatId),
     ...handoffTools(group, botId),
+    ...memoryTools(member.sandboxId),
   }
 }
 
@@ -112,6 +133,7 @@ export const chatAgent = chat.agent({
       messages,
       tools,
       abortSignal: signal,
+      stopWhen: stepCountIs(15),
     })
   },
 })
