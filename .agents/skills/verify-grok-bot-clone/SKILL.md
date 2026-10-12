@@ -1,6 +1,6 @@
 ---
 name: verify-grok-bot-clone
-description: Drive and verify the grok-bot-clone Next.js app (a local web UI) with headless Chrome over the DevTools Protocol. Use when you need to prove the Clerk-gated home page or chat page renders, that the sidebar shell works, that the bot dialog creates, edits, and deletes a row, or that the dark-mode hotkey works, capture screenshots or ARIA snapshots, or reproduce a UI bug in this repo without installing a test framework.
+description: Drive and verify the grok-bot-clone Next.js app (a local web UI) with headless Chrome over the DevTools Protocol. Use when you need to prove the Clerk-gated home page or chat page renders, that the sidebar shell works, that the bot dialog creates, edits, and deletes a row, that a group chat hands a request to another member, or that the dark-mode hotkey works, capture screenshots or ARIA snapshots, or reproduce a UI bug in this repo without installing a test framework.
 ---
 
 # Verify grok-bot-clone
@@ -137,6 +137,14 @@ Selectors to prefer in this app:
   `alertdialog "Delete <name>?"`.
 - Chat header: a `sectionheader` holding a `heading` and a `button` named after the
   chat, plus `button "Toggle Desktop"`.
+- Chat thread and composer: the messages live in a `log`, and the composer is
+  `textbox "What would you like to know?"` with `button "Submit"`, which reads
+  `Stop` while a turn streams.
+- Group chat: the composer's `combobox "Choose a bot"` picks the member who
+  answers, and a handoff renders as `button "Handed off to <name> Completed"`. A
+  group's header is a plain `heading` with a disabled `button "Toggle Desktop"`.
+- Group dialog: `dialog "New group chat"` with `textbox "Name"` and one
+  `checkbox "<bot name>"` per bot.
 - Desktop panel: `button "Toggle Desktop"` opens the panel, `button "Refresh the
   screen"` asks for the screen again, and the preview is `button "Open <bot>'s
   screen fullscreen"`. While fullscreen, a `dialog "<bot>'s screen"` holds the
@@ -194,6 +202,8 @@ Proof standards for this app:
   from the closed command palette. It is not a dialog. Check the `dialog` role or
   `[data-slot=dialog-content]` before reporting an open palette, and see
   [Sidebar](./features/sidebar.md#gotchas).
+- A chat message body is an unnamed `paragraph`, and the snapshot drops those. Read
+  what a message says with `$CG text` or an `innerText` read of `[role=log]`.
 - `/` and `/chats/<id>` need a session. A signed-out run of a recipe on either one
   measures the sign-in route instead, so sign in first and check the path.
 - A screenshot alone is weak proof of a state change. Pair it with `theme` output
