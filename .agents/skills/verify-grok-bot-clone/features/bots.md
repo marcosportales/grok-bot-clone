@@ -86,9 +86,11 @@ Preconditions:
   prefix.
 - **Submit.** Run `$CG click --role button --name "Create bot"`, then `sleep 4`. The
   form dialog is gone, checked with
-  `$CG eval "!!document.querySelector('#new-bot-form')"` printing `false`, and the
-  `Notifications` region holds a toast headed `Ada is ready` with the line
-  `Give it something to work on whenever you like.` Capture it with
+  `$CG eval "!!document.querySelector('#new-bot-form')"` printing `false`. A snapshot
+  holds the `Notifications` region and the toast's own `dialog "Ada is ready"`
+  heading. The toast's line `Give it something to work on whenever you like.` is a
+  paragraph, so the snapshot drops it; read it with `$CG text`. Capture the
+  snapshot with
   `$CG snapshot "$ART/bots-created.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
 - **Read the rows back.** The screen only shows a toast, so query the database for a
   second view of what the action wrote. The join below returns the newest bot with
@@ -138,14 +140,16 @@ Preconditions:
   The row's `job` carries the new value.
 - **Delete, and back out once.** Reopen edit mode, run
   `$CG click --role button --name "Delete"`, then `sleep 1`. A snapshot shows
-  `alertdialog "Delete Ada?"`, the line `Its chat goes with it. This cannot be
-  undone.`, and the buttons `Keep it` and `Delete`. Run
+  `alertdialog "Delete Ada?"` with its heading and the buttons `Keep it` and
+  `Delete`. The question's line `Its chat goes with it. This cannot be undone.` is a
+  paragraph, so the snapshot drops it; read it with
+  `$CG text '[role=alertdialog]'`. Run
   `$CG click --role button --name "Keep it"`, then
   `$CG eval "!!document.querySelector('#edit-bot-form')"`. It prints `true`, so the
   bot is still there and the form is back.
 - **Delete for real.** Run `$CG click --role button --name "Delete"`, then
-  `$CG click --role button --name "Delete"`, then `sleep 4`. A toast reads
-  `Ada is deleted` with the line `Its chat is gone from the sidebar.` The path is
+  `$CG click --role button --name "Delete"`, then `sleep 4`. Run `$CG text`. Stdout
+  holds `Ada is deleted` and its line `Its chat is gone from the sidebar.` The path is
   `/`, and a sidebar read shows no row named `Ada`. Read the rows back:
 
   ```bash
@@ -177,6 +181,13 @@ Preconditions:
 - The success toast is itself a `dialog`, named after the bot. After a submit,
   `document.querySelector('[role=dialog]')` matches the toast, so check
   `#new-bot-form` or `#edit-bot-form` to decide whether the form is still open.
+- `snapshot` drops unnamed `paragraph` nodes, and both the toast's line and the
+  delete question's line are paragraphs. A snapshot shows the `Notifications`
+  region and the toast's heading, or the `alertdialog` and its buttons. Read the
+  line itself with `$CG text`, per [Chat page](./chat-page.md#gotchas).
+- Creating a bot also provisions its computer, and deleting one tears that
+  computer down, so both take longer than the toast suggests. A create that fails
+  after the sandbox exists rolls the sandbox back (`actions/bot.ts`).
 - A page can hold two bot dialogs at once, the sidebar's create dialog and a chat
   header's edit dialog. The mode-specific ids are what tell them apart.
 - The confirmation is its own `alertdialog`, and it hides the edit form behind it.

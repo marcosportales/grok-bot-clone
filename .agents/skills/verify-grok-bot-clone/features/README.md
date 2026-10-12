@@ -63,6 +63,15 @@ The email address must be `verified` or the form diverts to a code nobody can
 read. `bypass_client_trust` cancels the `/sign-in/client-trust` step that would
 divert the same way.
 
+The skill never stores the password. When `signin` stops on
+`/sign-in/factor-one`, that is Clerk's password-retry page and the password is
+wrong or unknown, not a second factor. Rotate it on the dev instance and use the
+new value:
+
+```bash
+clerk api users/<id> -X PATCH -d '{"password":"<password>"}' --yes
+```
+
 Then sign the owned Chrome in with the same credentials:
 
 ```bash
@@ -71,6 +80,24 @@ export GROK_VERIFY_PASSWORD='<password>'
 $CG signin                       # idempotent; says so when a session already exists
 $CG eval "location.pathname"     # "/" when signed in
 ```
+
+## The second account
+
+[Chat page](./chat-page.md#gotchas) proves that a chat id owned by another account
+reads as missing. That needs a second account, and the skill keeps one:
+`grok-foreign-verify@example.com` (first name `Foreign`, last name `Verify`).
+Provision it the same way as the maintain account, and set the same password. It
+owns no bots or chats until a drive creates one, so signing in as it is also the
+baseline for `sidebar-empty`.
+
+```bash
+export GROK_VERIFY_EMAIL=grok-foreign-verify@example.com
+export GROK_VERIFY_PASSWORD='<password>'
+```
+
+Sign in as the maintain account first and read a chat id it owns. Sign out, sign
+in as the foreign account, open that id, and confirm the not-found page. Reverse
+the two accounts to cover the other direction.
 
 Sign out from the account panel
 (`$CG click --role button --name "Open user menu"` then

@@ -233,7 +233,9 @@ Kill what you started: use `$CG down`, which uses the recorded PIDs.
 
 A run that creates a bot leaves rows in `bots`, `chats`, and `chat_members`, and a
 sidebar row in every later run. Delete what the run created with the delete recipe
-in [Bots](./features/bots.md).
+in [Bots](./features/bots.md). A group chat has no delete control anywhere in the
+app, so a group a run creates stays. Prefer an existing group for handoff drives,
+or remove the row out of band when the account should not keep it.
 
 ## Helpers
 
