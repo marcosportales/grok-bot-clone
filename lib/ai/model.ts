@@ -20,7 +20,7 @@ function isModelId(value: string): value is ModelId {
   )
 }
 
-export function chatModel(): LanguageModel {
+export function chatModelId(): ModelId {
   const id = process.env.AI_MODEL?.trim() || defaultModel
 
   if (!isModelId(id)) {
@@ -29,5 +29,9 @@ export function chatModel(): LanguageModel {
     )
   }
 
-  return registry.languageModel(id)
+  return id
+}
+
+export function chatModel(): LanguageModel {
+  return registry.languageModel(chatModelId())
 }

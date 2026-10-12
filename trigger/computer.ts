@@ -6,6 +6,7 @@ import { z } from "zod"
 import { getDaytona } from "@/lib/daytona"
 import { bots, chatMembers } from "@/lib/db/schema"
 import { appendMemory, memoryFile, readMemory, writeMemory } from "@/lib/memory"
+import { accrueSandboxTime } from "@/lib/usage/sandbox"
 
 import { database } from "./db"
 
@@ -94,9 +95,12 @@ function pathOf(path: string): string | Failure {
   return path
 }
 
-async function sandboxIdForChat(chatId: string): Promise<string> {
+/** The bot whose computer a chat works on, and the user its time is billed to. */
+type BotSandbox = { botId: string; userId: string; sandboxId: string }
+
+async function ownerForChat(chatId: string): Promise<BotSandbox> {
   const [member] = await database()
-    .select({ sandboxId: bots.sandboxId })
+    .select({ botId: bots.id, userId: bots.userId, sandboxId: bots.sandboxId })
     .from(chatMembers)
     .innerJoin(bots, eq(chatMembers.botId, bots.id))
     .where(eq(chatMembers.chatId, chatId))
@@ -107,7 +111,26 @@ async function sandboxIdForChat(chatId: string): Promise<string> {
     throw new Error("This bot has no computer.")
   }
 
-  return member.sandboxId
+  return {
+    botId: member.botId,
+    userId: member.userId,
+    sandboxId: member.sandboxId,
+  }
+}
+
+/** The same, for a caller that holds only the sandbox id, such as bot memory. */
+async function ownerForSandbox(sandboxId: string): Promise<BotSandbox> {
+  const [bot] = await database()
+    .select({ botId: bots.id, userId: bots.userId })
+    .from(bots)
+    .where(eq(bots.sandboxId, sandboxId))
+    .limit(1)
+
+  if (!bot) {
+    throw new Error("This bot has no computer.")
+  }
+
+  return { botId: bot.botId, userId: bot.userId, sandboxId }
 }
 
 async function openSandbox(sandboxId: string): Promise<Sandbox> {
@@ -143,7 +166,7 @@ async function openDesktop(sandbox: Sandbox): Promise<void> {
 }
 
 async function withSandbox<T>(
-  sandboxId: () => Promise<string>,
+  owner: () => Promise<BotSandbox>,
   signal: AbortSignal | undefined,
   run: (sandbox: Sandbox) => Promise<T>
 ): Promise<T | Failure> {
@@ -153,7 +176,13 @@ async function withSandbox<T>(
   }
 
   try {
-    const sandbox = await openSandbox(await sandboxId())
+    const { botId, userId, sandboxId } = await owner()
+
+    // Opening the sandbox is what starts it, so every tool call is a touch, and
+    // the time since the last touch is the time it has been running.
+    await accrueSandboxTime(database(), { botId, userId })
+
+    const sandbox = await openSandbox(sandboxId)
     return await run(sandbox)
   } catch (error) {
     return failed(error)
@@ -161,11 +190,11 @@ async function withSandbox<T>(
 }
 
 async function withDesktop<T>(
-  sandboxId: () => Promise<string>,
+  owner: () => Promise<BotSandbox>,
   signal: AbortSignal | undefined,
   run: (sandbox: Sandbox) => Promise<T>
 ): Promise<T | Failure> {
-  return withSandbox(sandboxId, signal, async (sandbox) => {
+  return withSandbox(owner, signal, async (sandbox) => {
     await openDesktop(sandbox)
     return run(sandbox)
   })
@@ -280,7 +309,7 @@ export async function botMemory(sandboxId: string | null): Promise<string> {
   }
 
   const result = await withSandbox(
-    async () => sandboxId,
+    () => ownerForSandbox(sandboxId),
     undefined,
     async (sandbox) => ({ content: await readMemory(sandbox) })
   )
@@ -298,12 +327,12 @@ export async function botMemory(sandboxId: string | null): Promise<string> {
 }
 
 export function memoryTools(sandboxId: string | null) {
-  const ownComputer = async () => {
+  const ownSandbox = async (): Promise<BotSandbox> => {
     if (!sandboxId) {
       throw new Error("This bot has no computer.")
     }
 
-    return sandboxId
+    return ownerForSandbox(sandboxId)
   }
 
   return {
@@ -311,7 +340,7 @@ export function memoryTools(sandboxId: string | null) {
       description: `Read your memory: ${memoryFile} on your own computer, where you keep what you learned about this user in earlier conversations.`,
       inputSchema: z.object({}),
       execute: async (_input, { abortSignal }) =>
-        withSandbox(ownComputer, abortSignal, async (sandbox) => ({
+        withSandbox(ownSandbox, abortSignal, async (sandbox) => ({
           content: await readMemory(sandbox),
         })),
     }),
@@ -322,7 +351,7 @@ export function memoryTools(sandboxId: string | null) {
         note: z.string().min(1).max(2_000),
       }),
       execute: async ({ note }, { abortSignal }) =>
-        withSandbox(ownComputer, abortSignal, async (sandbox) => {
+        withSandbox(ownSandbox, abortSignal, async (sandbox) => {
           await appendMemory(sandbox, note)
 
           return {
@@ -338,7 +367,7 @@ export function memoryTools(sandboxId: string | null) {
         content: z.string().max(8_000),
       }),
       execute: async ({ content }, { abortSignal }) =>
-        withSandbox(ownComputer, abortSignal, async (sandbox) => {
+        withSandbox(ownSandbox, abortSignal, async (sandbox) => {
           await writeMemory(sandbox, content)
 
           return {
@@ -351,7 +380,7 @@ export function memoryTools(sandboxId: string | null) {
 }
 
 export function computerTools(chatId: string) {
-  const sandboxId = () => sandboxIdForChat(chatId)
+  const owner = () => ownerForChat(chatId)
 
   return {
     bash: tool({
@@ -362,7 +391,7 @@ export function computerTools(chatId: string) {
         cwd: z.string().max(500).optional(),
       }),
       execute: async ({ command, cwd }, { abortSignal }) =>
-        withSandbox(sandboxId, abortSignal, async (sandbox) => {
+        withSandbox(owner, abortSignal, async (sandbox) => {
           const cwdPath = cwd ? pathOf(cwd) : undefined
           if (cwdPath && typeof cwdPath !== "string") {
             return cwdPath
@@ -387,7 +416,7 @@ export function computerTools(chatId: string) {
         path: z.string().min(1).max(500),
       }),
       execute: async ({ path }, { abortSignal }) =>
-        withSandbox(sandboxId, abortSignal, async (sandbox) => {
+        withSandbox(owner, abortSignal, async (sandbox) => {
           const filePath = pathOf(path)
           if (typeof filePath !== "string") {
             return filePath
@@ -419,7 +448,7 @@ export function computerTools(chatId: string) {
         content: z.string().max(100_000),
       }),
       execute: async ({ path, content }, { abortSignal }) =>
-        withSandbox(sandboxId, abortSignal, async (sandbox) => {
+        withSandbox(owner, abortSignal, async (sandbox) => {
           const filePath = pathOf(path)
           if (typeof filePath !== "string") {
             return filePath
@@ -440,7 +469,7 @@ export function computerTools(chatId: string) {
         path: z.string().min(1).max(500).default("."),
       }),
       execute: async ({ path }, { abortSignal }) =>
-        withSandbox(sandboxId, abortSignal, async (sandbox) => {
+        withSandbox(owner, abortSignal, async (sandbox) => {
           const directory = pathOf(path)
           if (typeof directory !== "string") {
             return directory
@@ -479,7 +508,7 @@ export function computerTools(chatId: string) {
         clicks: z.number().int().min(1).max(3).default(1),
       }),
       execute: async ({ x, y, button: mouseButton, clicks }, { abortSignal }) =>
-        withDesktop(sandboxId, abortSignal, async (sandbox) => {
+        withDesktop(owner, abortSignal, async (sandbox) => {
           const result = await sandbox.computerUse.mouse.click(
             x,
             y,
@@ -501,7 +530,7 @@ export function computerTools(chatId: string) {
         y: z.number().int(),
       }),
       execute: async ({ x, y }, { abortSignal }) =>
-        withDesktop(sandboxId, abortSignal, async (sandbox) => {
+        withDesktop(owner, abortSignal, async (sandbox) => {
           const result = await sandbox.computerUse.mouse.move(x, y)
 
           return {
@@ -520,7 +549,7 @@ export function computerTools(chatId: string) {
         amount: z.number().int().min(1).max(20).default(1),
       }),
       execute: async ({ x, y, direction, amount }, { abortSignal }) =>
-        withDesktop(sandboxId, abortSignal, async (sandbox) => {
+        withDesktop(owner, abortSignal, async (sandbox) => {
           await sandbox.computerUse.mouse.scroll(x, y, direction, amount)
 
           return { x, y } satisfies PointerResult
@@ -533,7 +562,7 @@ export function computerTools(chatId: string) {
         text: z.string().min(1).max(4_000),
       }),
       execute: async ({ text }, { abortSignal }) =>
-        withDesktop(sandboxId, abortSignal, async (sandbox) => {
+        withDesktop(owner, abortSignal, async (sandbox) => {
           await sandbox.computerUse.keyboard.type(text)
           return { typed: text.length }
         }),
@@ -546,7 +575,7 @@ export function computerTools(chatId: string) {
         modifiers: z.array(modifier).max(4).default([]),
       }),
       execute: async ({ key, modifiers }, { abortSignal }) =>
-        withDesktop(sandboxId, abortSignal, async (sandbox) => {
+        withDesktop(owner, abortSignal, async (sandbox) => {
           await sandbox.computerUse.keyboard.press(key, modifiers)
           return { key, modifiers }
         }),
@@ -556,7 +585,7 @@ export function computerTools(chatId: string) {
         "Look at the desktop before you click and after the screen changes. Returns a picture of the screen and the accessibility tree. Each control has a role, a name, and bounds as x, y, width, height from the top-left. Nothing from this tool is shown in the chat.",
       inputSchema: z.object({}),
       execute: async (_input, { abortSignal }) =>
-        withDesktop(sandboxId, abortSignal, async (sandbox) => {
+        withDesktop(owner, abortSignal, async (sandbox) => {
           const picture = await takePicture(sandbox)
           if ("error" in picture) {
             return picture
@@ -581,7 +610,7 @@ export function computerTools(chatId: string) {
         "Show a picture of the desktop to the user. Call it only when the user asks to see the screen.",
       inputSchema: z.object({}),
       execute: async (_input, { abortSignal }) =>
-        withDesktop(sandboxId, abortSignal, (sandbox) => takePicture(sandbox)),
+        withDesktop(owner, abortSignal, (sandbox) => takePicture(sandbox)),
       toModelOutput: ({ output }) => pictureForModel(output),
     }),
   }
