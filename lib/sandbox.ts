@@ -3,13 +3,16 @@ import "server-only"
 import { DaytonaNotFoundError } from "@daytona/sdk"
 
 import { getDaytona } from "@/lib/daytona"
+import { writeMemory } from "@/lib/memory"
 
 /**
- * Creates a sandbox and returns its id. The app does not call start, stop, or
- * run anything inside it. Daytona's create call is what provisions the sandbox.
+ * Creates a sandbox and returns its id. The app does not call start or stop.
+ * A new sandbox starts with a blank memory, and that is the only thing written
+ * into it here.
  */
 export async function createSandbox(): Promise<string> {
   const sandbox = await getDaytona().create()
+  await writeMemory(sandbox, "")
   return sandbox.id
 }
 

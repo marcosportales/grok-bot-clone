@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { getDaytona } from "@/lib/daytona"
 import { bots, chatMembers } from "@/lib/db/schema"
+import { appendMemory, memoryFile, readMemory, writeMemory } from "@/lib/memory"
 
 import { database } from "./db"
 
@@ -271,6 +272,82 @@ async function takePicture(sandbox: Sandbox): Promise<ScreenPicture> {
   }
 
   return { error: "The picture was too large to send." }
+}
+
+export async function botMemory(sandboxId: string | null): Promise<string> {
+  if (!sandboxId) {
+    return ""
+  }
+
+  const result = await withSandbox(
+    async () => sandboxId,
+    undefined,
+    async (sandbox) => ({ content: await readMemory(sandbox) })
+  )
+
+  if ("error" in result) {
+    console.error("failed to read bot memory", {
+      sandboxId,
+      error: result.error,
+    })
+
+    return ""
+  }
+
+  return result.content
+}
+
+export function memoryTools(sandboxId: string | null) {
+  const ownComputer = async () => {
+    if (!sandboxId) {
+      throw new Error("This bot has no computer.")
+    }
+
+    return sandboxId
+  }
+
+  return {
+    readMemory: tool({
+      description: `Read your memory: ${memoryFile} on your own computer, where you keep what you learned about this user in earlier conversations.`,
+      inputSchema: z.object({}),
+      execute: async (_input, { abortSignal }) =>
+        withSandbox(ownComputer, abortSignal, async (sandbox) => ({
+          content: await readMemory(sandbox),
+        })),
+    }),
+    remember: tool({
+      description:
+        "Add one short note to your memory. Use this for anything worth carrying into a later conversation. It appends, so what you already wrote stays.",
+      inputSchema: z.object({
+        note: z.string().min(1).max(2_000),
+      }),
+      execute: async ({ note }, { abortSignal }) =>
+        withSandbox(ownComputer, abortSignal, async (sandbox) => {
+          await appendMemory(sandbox, note)
+
+          return {
+            path: memoryFile,
+            bytes: Buffer.byteLength(note, "utf8"),
+          }
+        }),
+    }),
+    writeMemory: tool({
+      description:
+        "Replace your whole memory file. Use this only to tidy it up or to drop something the user asked you to forget, and write back everything still worth keeping.",
+      inputSchema: z.object({
+        content: z.string().max(8_000),
+      }),
+      execute: async ({ content }, { abortSignal }) =>
+        withSandbox(ownComputer, abortSignal, async (sandbox) => {
+          await writeMemory(sandbox, content)
+
+          return {
+            path: memoryFile,
+            bytes: Buffer.byteLength(content, "utf8"),
+          }
+        }),
+    }),
+  }
 }
 
 export function computerTools(chatId: string) {
