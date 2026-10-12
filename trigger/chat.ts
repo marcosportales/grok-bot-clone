@@ -1,9 +1,11 @@
+import * as Sentry from "@sentry/node"
 import { chat, defaultStorage } from "@trigger.dev/sdk/ai"
 import { stepCountIs } from "ai"
 import { z } from "zod"
 
 import { chatModel, chatModelId } from "@/lib/ai/model"
 import { memoryFile } from "@/lib/memory"
+import { errorName } from "@/lib/sentry-logs"
 import { aiCostMicros } from "@/lib/usage/ai-cost"
 import { recordUsage, usageTotal } from "@/lib/usage/ledger"
 import { meterLimitMessage, paidAllowance } from "@/lib/usage/limits"
@@ -72,6 +74,7 @@ async function turnFor(chatId: string, botId: string | undefined) {
 
   if (!member) {
     console.error("chat has no bot", { chatId, botId })
+    Sentry.logger.warn("chat has no bot", { "gbot.chat.id": chatId })
     throw new Error("Something went wrong.")
   }
 
@@ -170,6 +173,12 @@ export const chatAgent = chat.agent({
         runId,
         turn,
         meteringError,
+      })
+      Sentry.logger.error("failed to record AI token usage", {
+        "gbot.chat.id": chatId,
+        "gbot.run.id": runId,
+        "gbot.chat.turn": turn,
+        "gbot.error.name": errorName(meteringError),
       })
     }
   },

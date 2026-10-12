@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node"
 import { tool, type ToolSet } from "ai"
 import { asc, eq } from "drizzle-orm"
 import { z } from "zod"
@@ -34,6 +35,7 @@ export async function groupFor(chatId: string): Promise<ChatGroup> {
 
   if (!chat) {
     console.error("chat does not exist", { chatId })
+    Sentry.logger.warn("chat does not exist", { "gbot.chat.id": chatId })
     throw new Error("Something went wrong.")
   }
 
