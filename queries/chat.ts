@@ -8,17 +8,6 @@ import { chatMembers, chats, type Bot, type Chat } from "@/lib/db/schema"
 
 export type ChatWithBots = Chat & { bots: Bot[] }
 
-/**
- * The signed-in user's chats, most recent activity first, each one carrying
- * every member it has, oldest first.
- *
- * `userId` comes from the Clerk session and never from the caller, so a client
- * cannot ask for somebody else's chats. A direct chat is identified by its one
- * bot; a group chat keeps its own name and draws a face from all of its
- * members. Deleting a bot cascades its membership away and leaves the chat
- * behind, and a chat with no members has neither a face nor a name, so it is
- * dropped instead of rendered empty.
- */
 export async function getChatsWithBots(): Promise<ChatWithBots[]> {
   const { isAuthenticated, userId } = await auth()
   if (!isAuthenticated) {
@@ -30,9 +19,6 @@ export async function getChatsWithBots(): Promise<ChatWithBots[]> {
     orderBy: [desc(chats.lastMessageAt)],
     with: {
       chatMembers: {
-        // `botId` breaks the tie a group's single multi-row insert leaves in
-        // `joinedAt`, so the first member here is the first member the
-        // trigger's own tools and prompt reach for.
         orderBy: [asc(chatMembers.joinedAt), asc(chatMembers.botId)],
         with: { bot: true },
       },
@@ -45,15 +31,6 @@ export async function getChatsWithBots(): Promise<ChatWithBots[]> {
   })
 }
 
-/**
- * One chat with the same members the list gives it, or null when the id names
- * no chat of the signed-in user.
- *
- * The id arrives from the URL, so it is treated as a caller-supplied value: the
- * row has to match both the id and the session's `userId`. A chat belonging to
- * somebody else matches nothing and reads as missing, which is what keeps the
- * two cases indistinguishable from outside.
- */
 export async function getChatWithBots(
   chatId: string
 ): Promise<ChatWithBots | null> {
@@ -66,8 +43,6 @@ export async function getChatWithBots(
     where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
     with: {
       chatMembers: {
-        // The same order as the list above, and the same one the trigger's
-        // tools use to pick the chat's computer.
         orderBy: [asc(chatMembers.joinedAt), asc(chatMembers.botId)],
         with: { bot: true },
       },

@@ -36,11 +36,6 @@ const collapsedAppearance = {
   },
 }
 
-/**
- * The sidebar footer's account menu. It reads the sidebar's state itself, so the
- * row shows the name and avatar while expanded and the face alone while
- * collapsed.
- */
 function SidebarUserButton() {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"

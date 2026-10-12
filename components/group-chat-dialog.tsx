@@ -31,28 +31,16 @@ import { toast } from "@/components/ui/toast"
 import type { BotOption } from "@/lib/bot"
 import { insertGroupChatSchema, type InsertGroupChat } from "@/lib/db/schema"
 
-// The dialog opens empty every time, and the object is built here so the reset
-// below can restore it without the form keeping a reference to a live edit.
 function emptyGroup(): InsertGroupChat {
   return { name: "", botIds: [] }
 }
 
 type GroupChatDialogProps = {
-  /** The bots the caller can put in a group, in the order the picker lists. */
   bots: BotOption[]
-  /** Controlled open state, since the sidebar opens this from a menu item. */
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-/**
- * A group chat's two answers in a dialog: its name, and the bots in it. The
- * bots are a multi-select, so the count the schema demands is the count the
- * reader picks.
- *
- * The sidebar owns the open state, which keeps the sidebar a Server Component
- * and this dialog a client one.
- */
 function GroupChatDialog({ bots, open, onOpenChange }: GroupChatDialogProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -62,8 +50,6 @@ function GroupChatDialog({ bots, open, onOpenChange }: GroupChatDialogProps) {
     defaultValues: emptyGroup(),
   })
 
-  // Reset on open, not on close, for the same reason as the bot dialog: a
-  // cancelled attempt should not be what the next open shows.
   useEffect(() => {
     if (open) {
       form.reset(emptyGroup())
@@ -131,8 +117,6 @@ function GroupChatDialog({ bots, open, onOpenChange }: GroupChatDialogProps) {
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel>Bots</FieldLabel>
-                  {/* A long bot list scrolls instead of pushing the footer off
-                      the dialog. */}
                   <div className="flex max-h-64 flex-col overflow-y-auto">
                     {bots.map((bot) => {
                       const id = `group-chat-bot-${bot.id}`

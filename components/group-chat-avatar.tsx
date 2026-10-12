@@ -8,10 +8,6 @@ const size = 32
 
 type Cell = { cx: number; cy: number; r: number }
 
-// One geometry per tile count, in the 32x32 space of the viewBox. Every tile is
-// a circle of radius `r` at `cx`, `cy`: one face fills the box, two sit side by
-// side and overlap, three form a triangle, four fill a 2x2 grid. A count tile
-// takes the fourth cell of that grid.
 const layouts: Record<number, Cell[]> = {
   1: [{ cx: 16, cy: 16, r: 16 }],
   2: [
@@ -31,11 +27,6 @@ const layouts: Record<number, Cell[]> = {
   ],
 }
 
-// The surface under a group face differs: the sidebar, the chat header, and a
-// dialog each have their own background, and the theme changes all three. A
-// face that overlaps another therefore cuts a transparent moat out of the one
-// beneath it, so the seam is the surface showing through rather than a colour
-// this avatar would have to guess.
 function moatHoles(above: Cell[]) {
   return above
     .map(
@@ -46,8 +37,6 @@ function moatHoles(above: Cell[]) {
 }
 
 function groupMarkup(seeds: string[]) {
-  // A chat keeps at least one member, and the table stops at four: members past
-  // the third are what the count tile is for.
   const tiles = Math.min(Math.max(seeds.length, 1), 4)
   const layout = layouts[tiles]
   const shown = seeds.slice(0, 3)
@@ -87,8 +76,6 @@ function groupMarkup(seeds: string[]) {
 const dataUriCache = new Map<string, string>()
 
 function groupAvatarDataUri(seeds: string[]) {
-  // A seed is client-supplied on bot create, so the key is the whole list rather
-  // than a delimiter-joined string two different lists could share.
   const key = JSON.stringify(seeds)
 
   const cached = dataUriCache.get(key)
@@ -111,11 +98,6 @@ type GroupChatAvatarProps = {
   className?: string
 }
 
-/**
- * A group's face: up to three member faces in one SVG, plus a count tile for
- * the members that did not fit. It is one image, so it takes the same box a
- * single avatar takes and the caller sizes it the same way.
- */
 function GroupChatAvatar({ seeds, className }: GroupChatAvatarProps) {
   return (
     <Image
@@ -123,7 +105,6 @@ function GroupChatAvatar({ seeds, className }: GroupChatAvatarProps) {
       alt=""
       width={size}
       height={size}
-      // A data URI is already a vector; next/image serves it as-is.
       unoptimized
       className={cn("size-8 shrink-0", className)}
     />

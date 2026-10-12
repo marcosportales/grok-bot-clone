@@ -59,7 +59,6 @@ const jobPresets = [
   "Tutor",
 ]
 
-// The face is a DiceBear seed, so a fresh one is a face nobody has seen before.
 function emptyBot(): InsertBot {
   return { name: "", avatar: nanoid(), job: "", instructions: "" }
 }
@@ -79,26 +78,10 @@ type BotDialogProps = {
   /** Controlled open state. Omit it and the dialog holds its own state. */
   open?: boolean
   onOpenChange?: (open: boolean) => void
-  /**
-   * Runs after the bot is deleted. The page a deleted bot named is not a page
-   * any more, so the caller that opened the dialog says where its reader
-   * lands, instead of the dialog guessing.
-   */
   onDeleted?: () => void
-  /**
-   * The trigger button's label. Omit it and the dialog renders no trigger, for
-   * a caller that opens the dialog itself: the sidebar opens it from a
-   * dropdown item, which is not a DialogTrigger.
-   */
   children?: ReactNode
 }
 
-/**
- * The bot's fields in a dialog. It creates a bot, and it edits the one `bot`
- * names, since the fields hold the bot's own answers either way. Deleting is
- * an edit that has nothing left to edit, so it lives here too, behind a
- * confirmation.
- */
 function BotDialog({
   bot,
   open: openProp,
@@ -112,9 +95,6 @@ function BotDialog({
   const [isPending, startTransition] = useTransition()
 
   const isEdit = bot !== undefined
-  // A saved edit arrives as a new `bot` prop, and the form outlives the dialog
-  // being closed, so the values it starts from are derived here: one object per
-  // bot, which is what the reset below can watch.
   const initialValues = useMemo(
     () => (bot ? botAnswers(bot) : emptyBot()),
     [bot]
@@ -138,14 +118,10 @@ function BotDialog({
 
   const job = useWatch({ control: form.control, name: "job" })
 
-  // A page can hold two of these dialogs, the sidebar's create and a chat
-  // header's edit, so the id a form and its submit button share names the mode.
   const idPrefix = isEdit ? "edit-bot" : "new-bot"
   const formId = `${idPrefix}-form`
 
   function setOpen(nextOpen: boolean) {
-    // A dialog that is closed no longer asks anything, so the confirmation
-    // cannot outlive it and be waiting the next time it opens.
     if (!nextOpen) {
       setConfirmOpen(false)
     }
@@ -203,8 +179,6 @@ function BotDialog({
         description: "Its chat is gone from the sidebar.",
         type: "success",
       })
-      // Closing the dialog takes the confirmation with it, whether it is the
-      // question that was answered or the form behind it.
       setOpen(false)
       onDeleted?.()
     })
@@ -234,9 +208,6 @@ function BotDialog({
                 aria-label="Job presets"
                 variant="outline"
                 size="sm"
-                // `justify-between` spreads the four presets across the full row
-                // with a 4px minimum gap, and keeps them wrapping instead of
-                // overflowing on a narrow screen.
                 spacing={1}
                 className="w-full flex-wrap justify-between"
                 value={job ? [job] : []}
@@ -347,8 +318,6 @@ function BotDialog({
               <Button
                 type="button"
                 variant="destructive"
-                // The way out sits on the far side of the footer from the two
-                // buttons that keep the bot around.
                 className="sm:mr-auto"
                 onClick={() => setConfirmOpen(true)}
               >

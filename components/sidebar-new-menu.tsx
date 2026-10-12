@@ -15,11 +15,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { BotOption } from "@/lib/bot"
 
-/**
- * The sidebar header's "New" menu. It owns the open state of both dialogs,
- * which keeps the sidebar around it a Server Component instead of a whole
- * client tree.
- */
 function SidebarNewMenu({ bots }: { bots: BotOption[] }) {
   const [botDialogOpen, setBotDialogOpen] = useState(false)
   const [groupDialogOpen, setGroupDialogOpen] = useState(false)
@@ -39,7 +34,6 @@ function SidebarNewMenu({ bots }: { bots: BotOption[] }) {
           <PlusIcon />
           <span className="sr-only">New</span>
         </DropdownMenuTrigger>
-        {/* The content inherits the trigger width, which is an icon wide. */}
         <DropdownMenuContent align="end" className="w-52">
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => setBotDialogOpen(true)}>

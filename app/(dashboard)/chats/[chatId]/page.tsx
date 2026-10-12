@@ -15,8 +15,6 @@ export default async function Page({
 }: {
   params: Promise<{ chatId: string }>
 }) {
-  // A chat belongs to one user, so the route is gated before the id is looked
-  // at: a signed-out visitor is sent to sign in rather than shown a 404.
   await auth.protect()
 
   const { chatId } = await params
@@ -26,31 +24,17 @@ export default async function Page({
     notFound()
   }
 
-  // The header names the chat the way the sidebar does. A direct chat hands the
-  // bot's own answers to the dialog its title opens; a group has no single bot
-  // to edit, so it only gets its members as composer choices.
   const { title, face } = toChatSummary(chat)
-  // The chat's computer is its first member's, the same one the agent's own
-  // tools reach for, so the panel and the tools name one machine.
   const [owner] = chat.bots
-  // The screen a group would show is its first member's machine, and that bot's
-  // own chat already shows it, so only a direct chat opens a panel.
   const canOpen = chat.kind === "direct"
 
   return (
-    // The root layout and SidebarProvider set min-h-svh, so flex-1 alone grows
-    // the document instead of scrolling.
     <div className="flex h-svh min-h-0 flex-1 flex-col overflow-hidden">
-      {/* The desktop panel sits beside the conversation, so the group spans both
-          the header and the thread. `flex-1` hands it the height the page root
-          holds, whose definite size its own `height: 100%` needs. */}
       <DesktopPanelProvider canOpen={canOpen}>
         <ResizablePanelGroup
           orientation="horizontal"
           className="min-h-0 flex-1"
         >
-          {/* The conversation keeps a floor of its own, so dragging or Home
-              cannot hide it, and with it the control that closes the panel. */}
           <ResizablePanel id="chat" minSize="30%">
             <div className="flex h-full min-h-0 flex-col">
               <ChatHeader
@@ -65,7 +49,6 @@ export default async function Page({
               />
             </div>
           </ResizablePanel>
-          {/* The panel shows the screen of the chat's computer. */}
           <DesktopPanel chatId={chat.id} botName={owner.name} />
         </ResizablePanelGroup>
       </DesktopPanelProvider>

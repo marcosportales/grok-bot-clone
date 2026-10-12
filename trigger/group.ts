@@ -24,16 +24,6 @@ export type ChatGroup = {
   members: GroupMember[]
 }
 
-/**
- * The chat and everyone in it. A direct chat has the one member it was made
- * for, and a group has the ones it was created with minus any that were
- * deleted since.
- *
- * `joinedAt` alone does not order a group: its members are written in one
- * insert, so they all carry the same timestamp. `id` is the tie-break, and it
- * is what keeps "the first member" the same member in the prompt, in the
- * desktop panel, and in the tools.
- */
 export async function groupFor(chatId: string): Promise<ChatGroup> {
   const [chat] = await database()
     .select({ kind: chats.kind, name: chats.name })
@@ -65,21 +55,6 @@ type HandoffOutcome =
   | { botId: string; name: string; job: string; reason: string }
   | { error: string }
 
-/**
- * The handoff tool, for a member of a group chat. A direct chat has nobody to
- * hand anything to, so it gets no tool at all.
- *
- * The result is what the thread reads back to switch who answers: the id it
- * names, and the name the card draws. The caller is left out of the roster, so
- * a bot is not offered a handoff to itself.
- *
- * The member is named rather than identified by id, and the schema asks only
- * for a string, because the provider validates arguments itself and rejects
- * the whole call when they miss. A group's ids are 21 random characters, which
- * a model gets wrong often enough to matter, and an enum of them turns that
- * miss into a failed turn instead of a tool result the model can read and
- * retry.
- */
 export function handoffTools(
   group: ChatGroup,
   memberId: string | undefined

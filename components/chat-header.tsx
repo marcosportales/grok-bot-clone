@@ -4,21 +4,6 @@ import { EditBotButton } from "@/components/edit-bot-button"
 import type { EditableBot } from "@/lib/bot"
 import type { ChatFace } from "@/lib/chat"
 
-/**
- * The strip above a conversation. It names the chat and holds the controls for
- * it.
- *
- * It stays a Server Component. The bot's dialog and the desktop toggle each
- * carry their own state, so the header renders them as Client Components and
- * passes neither of them anything.
- *
- * A direct chat's name is its bot's, so the heading opens the dialog that edits
- * that bot. A group's name is the group's own and no dialog edits it, so the
- * heading is plain text.
- *
- * The name is the one the sidebar shows, worked out once in `toChatSummary`, so
- * a chat cannot be called two things on one screen.
- */
 function ChatHeader({
   title,
   face,

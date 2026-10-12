@@ -16,7 +16,6 @@ export function database() {
 
   pool = new Pool({ connectionString })
 
-  // pg emits "error" when an idle client dies, and an unhandled "error" event ends the process.
   pool.on("error", (error) => {
     console.error("idle postgres client error", error)
   })

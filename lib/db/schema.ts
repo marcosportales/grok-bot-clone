@@ -35,12 +35,6 @@ export const bots = pgTable(
 export type Bot = typeof bots.$inferSelect
 export type NewBot = typeof bots.$inferInsert
 
-// Derived from the table so the database stays the single source of truth. The
-// columns the server owns are dropped, so a client can never assert them:
-// `userId` comes from the Clerk session, `sandboxId` is assigned when the
-// sandbox is created, and `id` and `createdAt` are generated. `avatar` is a
-// generated seed too, which is why it is optional here; the dialog always
-// sends one.
 export const insertBotSchema = createInsertSchema(bots, {
   name: (schema) =>
     schema
@@ -64,9 +58,6 @@ export const insertBotSchema = createInsertSchema(bots, {
 
 export type InsertBot = z.infer<typeof insertBotSchema>
 
-// An edit sends the same fields as a create, plus the id of the row it changes.
-// The id is not a field the dialog renders: the action pairs it back with the
-// values before parsing, so the two are validated together.
 export const updateBotSchema = insertBotSchema.extend({
   id: z.string().min(1, "That bot no longer exists."),
 })
@@ -138,10 +129,6 @@ export type NewChat = typeof chats.$inferInsert
 export type ChatMember = typeof chatMembers.$inferSelect
 export type NewChatMember = typeof chatMembers.$inferInsert
 
-// A group's name is its own, and its members are the bots it was created with.
-// `botIds` is not a column: the action writes one `chat_members` row per id, and
-// the schema asks for at least two of them so a group can never look like a
-// direct chat.
 export const insertGroupChatSchema = createInsertSchema(chats)
   .omit({
     id: true,
