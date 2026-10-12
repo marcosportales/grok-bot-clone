@@ -1,5 +1,5 @@
 import { getToolName, isToolUIPart, type UIMessage } from "ai"
-import { differenceInSeconds, formatDistanceToNowStrict } from "date-fns"
+import { differenceInSeconds, format } from "date-fns"
 import { z } from "zod"
 
 import type { UpdateGroupChat } from "@/lib/db/schema"
@@ -78,11 +78,53 @@ export type ChatSummaryData = {
 }
 
 function chatAge(lastMessageAt: Date) {
-  if (differenceInSeconds(new Date(), lastMessageAt) < 60) {
-    return "now"
+  const seconds = differenceInSeconds(new Date(), lastMessageAt)
+
+  if (seconds < 60) {
+    return "just now"
   }
 
-  return formatDistanceToNowStrict(lastMessageAt, { addSuffix: false })
+  if (seconds < 3600) {
+    return `${Math.floor(seconds / 60)} min`
+  }
+
+  if (seconds < 86_400) {
+    const hours = Math.floor(seconds / 3600)
+
+    return `${hours} ${hours === 1 ? "hour" : "hours"}`
+  }
+
+  if (seconds < 604_800) {
+    const days = Math.floor(seconds / 86_400)
+
+    return `${days} ${days === 1 ? "day" : "days"}`
+  }
+
+  return format(lastMessageAt, "MMM d")
+}
+
+const previewLimit = 120
+
+export function lastUserMessagePreview(
+  uiMessages: UIMessage[]
+): string | undefined {
+  for (let index = uiMessages.length - 1; index >= 0; index -= 1) {
+    const message = uiMessages[index]
+
+    if (message.role !== "user") {
+      continue
+    }
+
+    const text = message.parts
+      .map((part) => (part.type === "text" ? part.text : ""))
+      .filter((text) => text.length > 0)
+      .join(" ")
+      .trim()
+
+    return text ? text.slice(0, previewLimit) : undefined
+  }
+
+  return undefined
 }
 
 function chatTitle(chat: ChatWithBots) {
