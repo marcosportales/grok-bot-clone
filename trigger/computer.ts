@@ -1,4 +1,5 @@
 import { DaytonaError, SandboxState, type Sandbox } from "@daytona/sdk"
+import * as Sentry from "@sentry/node"
 import { tool } from "ai"
 import { asc, eq } from "drizzle-orm"
 import { z } from "zod"
@@ -319,6 +320,7 @@ export async function botMemory(sandboxId: string | null): Promise<string> {
       sandboxId,
       error: result.error,
     })
+    Sentry.logger.warn("failed to read bot memory", { "gbot.sandbox.id": sandboxId })
 
     return ""
   }
