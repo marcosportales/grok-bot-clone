@@ -5,6 +5,7 @@ import {
   MessageContent,
   MessageResponse,
 } from "@/components/ai-elements/message"
+import { Badge } from "@/components/ui/badge"
 import { ChatAvatar } from "@/components/chat-avatar"
 import type { BotOption } from "@/lib/bot"
 import { botIdFromMessage } from "@/lib/chat"
@@ -26,26 +27,35 @@ function ChatMessage({ message, bots, animate }: ChatMessageProps) {
     return null
   }
 
-  const botId =
-    message.role === "assistant" ? botIdFromMessage(message) : undefined
-  const bot =
-    bots.length > 1 && botId
-      ? bots.find((candidate) => candidate.id === botId)
+  const messageBotId = botIdFromMessage(message)
+  const messageBot =
+    bots.length > 1 && messageBotId
+      ? bots.find((candidate) => candidate.id === messageBotId)
       : undefined
+  const assistantBot = message.role === "assistant" ? messageBot : undefined
+  const addressedBot = message.role === "user" ? messageBot : undefined
 
   return (
     <Message
       from={message.role}
-      className={bot ? "flex-row items-start gap-2" : undefined}
+      className={assistantBot ? "flex-row items-start gap-2" : undefined}
     >
-      {bot ? (
+      {assistantBot ? (
         <ChatAvatar
-          seed={bot.avatar}
-          alt={bot.name}
+          seed={assistantBot.avatar}
+          alt={assistantBot.name}
           className="mt-0.5 size-6"
         />
       ) : null}
-      <MessageContent>
+      <MessageContent
+        className={addressedBot ? "flex-row items-start gap-2" : undefined}
+      >
+        {addressedBot ? (
+          <Badge variant="outline" className="gap-1 pl-1 text-muted-foreground">
+            <ChatAvatar seed={addressedBot.avatar} className="size-3.5" />
+            <span className="max-w-24 truncate">{addressedBot.name}</span>
+          </Badge>
+        ) : null}
         {parts.map((part, partIndex) => {
           if (part.type === "text") {
             return (

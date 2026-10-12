@@ -148,7 +148,7 @@ function ChatThreadMessages({
       return
     }
 
-    sendMessage({ text })
+    sendMessage({ text, metadata: { botId } })
   }
 
   function handleStop() {
