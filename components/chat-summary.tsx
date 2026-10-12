@@ -22,7 +22,31 @@ function UnreadDot() {
   )
 }
 
-function ChatSummary({ face, title, age, preview, unread }: ChatSummaryData) {
+function WorkingDot() {
+  // The working dot takes the corner the unread dot leaves free, so a chat can
+  // wear both at once: a reply can land while the next turn is already running.
+  // It is a plain dot rather than a spinner on purpose, because a turn is as
+  // long as a computer-use session needs and the rail has no room for a second
+  // animation. The colour is the app's own `destructive` red, which is legible
+  // against both themes' sidebars. Icon mode pulls it inside the box for the
+  // same reason the unread dot sits inside: the rail is 3rem and clips.
+  return (
+    <span
+      aria-hidden
+      data-slot="chat-working-dot"
+      className="absolute -top-1 -right-1 size-2.5 rounded-full border-2 border-sidebar bg-destructive group-data-[collapsible=icon]:top-0 group-data-[collapsible=icon]:right-0 group-data-[collapsible=icon]:size-2"
+    />
+  )
+}
+
+function ChatSummary({
+  face,
+  title,
+  age,
+  preview,
+  unread,
+  working = false,
+}: ChatSummaryData & { working?: boolean }) {
   return (
     <>
       <span className="relative shrink-0">
@@ -31,8 +55,10 @@ function ChatSummary({ face, title, age, preview, unread }: ChatSummaryData) {
           className="group-data-[collapsible=icon]:size-6"
         />
         {unread ? <UnreadDot /> : null}
+        {working ? <WorkingDot /> : null}
       </span>
       {unread ? <span className="sr-only">Unread reply</span> : null}
+      {working ? <span className="sr-only">Reply in progress</span> : null}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 group-data-[collapsible=icon]:sr-only">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate font-semibold">{title}</span>

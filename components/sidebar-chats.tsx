@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 import { ChatSummary } from "@/components/chat-summary"
+import { useTurnActivity } from "@/components/turn-activity"
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -15,6 +16,7 @@ import type { ChatSummaryData } from "@/lib/chat"
 
 function SidebarChats({ chats }: { chats: ChatSummaryData[] }) {
   const pathname = usePathname()
+  const { isWorking } = useTurnActivity()
 
   return (
     <SidebarGroup>
@@ -38,7 +40,11 @@ function SidebarChats({ chats }: { chats: ChatSummaryData[] }) {
                       an unseen reply even when the layout still says it does:
                       a soft navigation reuses this layout from the client
                       cache, and a reply can land mid-render. */}
-                  <ChatSummary {...chat} unread={chat.unread && !isActive} />
+                  <ChatSummary
+                    {...chat}
+                    unread={chat.unread && !isActive}
+                    working={isWorking(chat.id)}
+                  />
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )

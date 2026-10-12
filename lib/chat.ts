@@ -2,7 +2,7 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai"
 import { differenceInSeconds, format } from "date-fns"
 import { z } from "zod"
 
-import type { UpdateGroupChat } from "@/lib/db/schema"
+import type { Chat, UpdateGroupChat } from "@/lib/db/schema"
 import type { ChatWithBots } from "@/queries/chat"
 
 const botMessageMetadataSchema = z.object({ botId: z.string().min(1) })
@@ -76,7 +76,17 @@ export type ChatSummaryData = {
   age: string
   preview: string
   unread: boolean
+  turn: { startedAt: number } | null
 }
+
+/**
+ * How long a turn marker is believed. Past it the marker is treated as the
+ * leavings of a run that died before `onTurnComplete`, and the dot it would
+ * light is suppressed. Sized above a fifteen-step computer-use turn and far
+ * below the task's `maxDuration`, because a stale marker is worse than a
+ * missing one.
+ */
+export const activeTurnMaxAgeMs = 5 * 60_000
 
 function chatAge(lastMessageAt: Date) {
   const seconds = differenceInSeconds(new Date(), lastMessageAt)
@@ -160,6 +170,16 @@ export function isChatUnread(chat: {
   return chat.lastReadAt === null || chat.lastBotMessageAt > chat.lastReadAt
 }
 
+function chatTurn(chat: Chat): { startedAt: number } | null {
+  if (chat.activeTurnAt === null) {
+    return null
+  }
+
+  const startedAt = chat.activeTurnAt.getTime()
+
+  return Date.now() - startedAt < activeTurnMaxAgeMs ? { startedAt } : null
+}
+
 export function toChatSummary(chat: ChatWithBots): ChatSummaryData {
   return {
     id: chat.id,
@@ -168,6 +188,7 @@ export function toChatSummary(chat: ChatWithBots): ChatSummaryData {
     age: chatAge(chat.lastMessageAt),
     preview: chatPreview(chat),
     unread: isChatUnread(chat),
+    turn: chatTurn(chat),
   }
 }
 

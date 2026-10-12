@@ -12,13 +12,11 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { toBotOption } from "@/lib/bot"
-import { toChatSummary } from "@/lib/chat"
+import type { ChatSummaryData } from "@/lib/chat"
 import { getBots } from "@/queries/bot"
-import { getChatsWithBots } from "@/queries/chat"
 
-export async function AppSidebar() {
-  const [chats, bots] = await Promise.all([getChatsWithBots(), getBots()])
-  const summaries = chats.map(toChatSummary)
+export async function AppSidebar({ chats }: { chats: ChatSummaryData[] }) {
+  const bots = await getBots()
 
   return (
     <Sidebar collapsible="icon">
@@ -26,10 +24,10 @@ export async function AppSidebar() {
         <div className="flex justify-end group-data-[collapsible=icon]:justify-start">
           <SidebarNewMenu bots={bots.map(toBotOption)} />
         </div>
-        <SidebarSearch chats={summaries} />
+        <SidebarSearch chats={chats} />
       </SidebarHeader>
       <SidebarContent>
-        <SidebarChats chats={summaries} />
+        <SidebarChats chats={chats} />
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>

@@ -94,6 +94,11 @@ export const chats = pgTable(
     // The reader's cursor, written when the chat page renders. Null means the
     // chat has never been opened, so a bot message makes it unread.
     lastReadAt: timestamp("last_read_at", { withTimezone: true }),
+    // The turn in flight, written by `onTurnStart` and nulled by
+    // `onTurnComplete`. The sidebar reads it as the only signal that a bot is
+    // answering, because a chat.agent run stays `EXECUTING` for the whole
+    // session lifetime and says nothing about the turn.
+    activeTurnAt: timestamp("active_turn_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -153,6 +158,7 @@ export const insertGroupChatSchema = createInsertSchema(chats)
     lastMessageAt: true,
     lastBotMessageAt: true,
     lastReadAt: true,
+    activeTurnAt: true,
     createdAt: true,
   })
   .extend({
