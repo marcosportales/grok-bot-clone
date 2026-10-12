@@ -10,9 +10,10 @@ import { usagePeriod } from "./period"
 export const sandboxAutoStopMinutes = 15
 
 /**
- * Adds the running time since the last touch to the ledger and moves the
- * cursor. One transaction, so a crash cannot accrue twice or move the cursor
- * without recording. Returns the minutes added.
+ * Adds the whole minutes the sandbox has run since the cursor to the ledger and
+ * advances the cursor by them, so the part under a minute stays on the cursor
+ * and accrues in the next window. One transaction, so a crash cannot accrue
+ * twice or move the cursor without recording. Returns the minutes added.
  *
  * Like the ledger it writes to, this module does not import `server-only`: the
  * Trigger.dev task that works in a bot's sandbox runs outside Next and accrues
@@ -47,14 +48,25 @@ export async function accrueSandboxTime(
     // is started and written to before the row exists, so creation opens its
     // window, not the first touch.
     const cursor = bot.touchedAt ?? bot.createdAt
-    const minutes = Math.min(
-      Math.floor((at.getTime() - cursor.getTime()) / 60_000),
-      sandboxAutoStopMinutes
-    )
+    // Time only moves forward. A touch reads `at` before it takes the row lock,
+    // so two tool calls running at once can arrive out of order, and a cursor
+    // that retreats bills the overlap a second time.
+    const gapMs = Math.max(0, at.getTime() - cursor.getTime())
+    const minutes = Math.min(Math.floor(gapMs / 60_000), sandboxAutoStopMinutes)
+
+    // A window at or past the auto-stop interval means the sandbox stopped on
+    // its own partway through it, so `at` is the right start for the next one and
+    // the tail of this window is not ours to bill. Under the cap the sandbox ran
+    // the whole gap, so only the whole minutes billed move the cursor and the
+    // remainder under a minute accrues in the next window instead of being lost.
+    const nextCursor =
+      minutes === sandboxAutoStopMinutes
+        ? at
+        : new Date(cursor.getTime() + minutes * 60_000)
 
     await tx
       .update(bots)
-      .set({ sandboxTouchedAt: at })
+      .set({ sandboxTouchedAt: nextCursor })
       .where(eq(bots.id, input.botId))
 
     if (minutes > 0) {
