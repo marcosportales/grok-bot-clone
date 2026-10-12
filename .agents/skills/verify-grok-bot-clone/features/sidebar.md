@@ -27,6 +27,9 @@ control. The dialogs it starts are [Bot dialog](./bots.md) and
 - `sidebar-search-open` choosing a result opens that chat and closes the palette.
 - `sidebar-chat-list` one row per chat, showing its face, name, age, and preview.
 - `sidebar-active-chat` the open chat's row carries `aria-current="page"`.
+- `sidebar-working-dot` a chat whose bot is replying carries a static red dot at the
+  top-right of its face, with a ring in the sidebar's own colour, and loses it when
+  the turn ends.
 - `sidebar-empty` an account with no chats shows an empty list and no empty-state
   copy.
 - `sidebar-account` `Open user menu` opens the account panel with `Manage account`,
@@ -106,6 +109,47 @@ Preconditions:
   read above. It returns `[]`, the tree holds an empty `list` where the rows would
   be, and the palette reports `No chats found.` The root page still shows its own
   empty state, so the two are independent.
+- **The working dot.** Open a chat, then `$CG click --role textbox --name
+  "What would you like to know?"`, `$CG type "Write about 500 words on why the
+  sky is blue. Plain prose, no tools."`, then
+  `$CG click --role button --name "Submit"`. While the answer streams,
+  `$CG eval "document.querySelectorAll('[data-slot=chat-working-dot]').length"`
+  prints `1` and a snapshot names the row `link "Reply in progress <title> <age>
+  <preview>"`. Long-form prose is the prompt to use: a turn that answers in one
+  line ends before the first read lands. While the dot is up, measure its box
+  against the avatar's and the row's with
+
+  ```bash
+  $CG eval "(() => { const row = [...document.querySelectorAll('[data-slot=sidebar-menu-button]')].find((e) => e.getAttribute('href') === '/chats/<id>'); const box = (e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)] }; return { dot: box(row.querySelector('[data-slot=chat-working-dot]')), avatar: box(row.querySelector('img')), row: box(row) } })()"
+  ```
+
+  Expanded, the dot reads `[42, 99, 10, 10]` against an avatar of `[16, 103, 32,
+  32]` and a row `54` high: ten pixels, four past the avatar's right and top
+  edges. In the icon rail it reads `[28, 132, 8, 8]` against an avatar of `[12,
+  132, 24, 24]` and a 32px row, inside the avatar because the rail clips an
+  overhang. `$CG press meta+b` collapses and expands it. Both modes report the
+  avatar's and the row's boxes unchanged from a listing without the dot, so it
+  costs the row nothing.
+- **It clears.** Read the count again once the answer has landed. It prints `0`, and
+  the row's name is back to `<title> <age> <preview>`. The dot is driven by the
+  thread's own status while the reader is inside the chat, so the clear needs no
+  reload, and the `chats.active_turn_at` marker the server wrote is nulled by
+  `onTurnComplete` in `trigger/chat.ts`. Read the marker to prove both halves:
+  during the turn `select active_turn_at from chats where id = '<id>'` returns an
+  instant, and after it returns `null`.
+- **A dot for a turn nobody watched start.** Write an instant into
+  `chats.active_turn_at` for a chat with no run, then reload `/`. The row carries
+  the dot on the first paint, which is the path a reload mid-turn takes. Write
+  `now() - interval '6 minutes'` instead and the dot is gone: past the bound a
+  marker is treated as the leavings of a run that died before `onTurnComplete`.
+  Write `now() - interval '4 minutes 50 seconds'`, reload, and the dot retires
+  itself about ten seconds later with no interaction, which is the bound plus the
+  timer that wakes at it.
+- **Both indicators at once.** Write `last_read_at = null` and a fresh
+  `active_turn_at` for one chat, then reload `/`. Its row carries the working dot
+  at `[42, 99, 10, 10]` and the unread dot at `[38, 125, 10, 10]`, sixteen pixels
+  apart at opposite corners, and the row's name reads `Unread reply Reply in
+  progress <title> ...`.
 - **Collapsed rows keep their names.** Run `$CG press meta+b`, then
   `$CG snapshot`. The chat rows still read `link "<title> <age> <preview>"`, because
   the label moves to screen-reader-only rather than out of the tree.
@@ -122,6 +166,15 @@ Preconditions:
 
 ## Gotchas
 
+- The working dot lives on the sidebar row and nowhere else. The search palette
+  renders the same summaries and shows no dot on any row, even for a chat that is
+  mid-reply.
+- The working dot is static on purpose. A pulse would overstate a turn that can run
+  for minutes and would animate a list of dozens of rows.
+- `data-slot="chat-unread-dot"` and `data-slot="chat-working-dot"` are separate
+  nodes at opposite corners of the same avatar, so a read of one is not a read of
+  the other. Both are `aria-hidden`; the text a screen reader gets is the row's own
+  `Unread reply` and `Reply in progress`, which move the row's accessible name.
 - Every dashboard page's accessibility tree carries a stray
   `heading "Search chats" level=2` with the palette's description, outside any
   dialog. The closed palette renders its screen-reader-only header into the rail
