@@ -11,8 +11,6 @@ import {
   type GroupMember,
 } from "./group"
 
-// The desktop is started later, the first time a mouse, keyboard, or screen
-// tool runs.
 const sandboxTools = [
   "You can run commands, read and write files, and use the desktop with the mouse, the keyboard, and the screen. Paths are on that computer. A relative path starts at its working directory.",
   "The desktop is an XFCE session. It starts the first time you use the mouse, the keyboard, or the screen.",
@@ -22,11 +20,6 @@ const sandboxTools = [
   "Prefer bash, readFile, writeFile, and listFiles for anything that does not need the desktop.",
 ].join("\n\n")
 
-// A direct chat's computer is its bot's own sandbox. A group's is the first
-// member's, because `sandboxIdForChat` hands every member of the group the same
-// machine, the one the chat page's desktop panel shows. The prompt says which
-// of the two it is, so a member of a group does not expect the filesystem to
-// itself.
 function sandboxInstructions(group: ChatGroup, member: GroupMember) {
   const owner = group.members[0]
   const machine =
@@ -37,9 +30,6 @@ function sandboxInstructions(group: ChatGroup, member: GroupMember) {
   return `${machine}\n\n${sandboxTools}`
 }
 
-// What a member of a group needs to know that it is in one: who else is here,
-// when to give a request away, and what to do when one arrives. A direct chat
-// has none of it and gets no section.
 function groupInstructions(group: ChatGroup, member: GroupMember) {
   if (group.kind !== "group") {
     return undefined
@@ -48,9 +38,6 @@ function groupInstructions(group: ChatGroup, member: GroupMember) {
   const others = group.members.filter((candidate) => candidate.id !== member.id)
   const title = group.name ?? group.members[0].name
 
-  // A group outlives the members deleted out of it, so one can end up with a
-  // single member. There is nobody to hand anything to then, and the tool is
-  // not offered either, so the prompt must not name it.
   if (others.length === 0) {
     return `You are in the group chat "${title}", and you are the only bot left in it. Every request is yours to answer.`
   }
@@ -65,12 +52,6 @@ function groupInstructions(group: ChatGroup, member: GroupMember) {
   ].join("\n\n")
 }
 
-// The name, the job, the computer, the group, and any instructions the owner
-// wrote live on rows this reads on each turn, which keeps an edit live on the
-// next message and keeps the client from supplying any of it. The answering bot
-// is picked out of the chat's own members, so an id for a bot that belongs to
-// somebody else, or one that was removed from the group, matches nothing and
-// fails exactly the way a memberless chat already did.
 async function instructionsFor(chatId: string, botId: string | undefined) {
   const group = await groupFor(chatId)
   const member = group.members.find((candidate) => candidate.id === botId)
@@ -113,32 +94,18 @@ async function chatTools(chatId: string, botId: string | undefined) {
 
 export const chatAgent = chat.agent({
   id: "chat",
-  // The platform transcript is stored under the chat id.
   storage: defaultStorage,
-  // Which bot answers is the client's choice, and the schema is what keeps a
-  // hand-rolled payload from reaching the run as anything else.
   clientDataSchema: z.object({ botId: z.string().min(1) }),
-  // Declared here so each tool's toModelOutput is reapplied when a later turn
-  // reloads the transcript. The run below receives this same set.
   tools: ({ chatId, clientData }) => chatTools(chatId, clientData?.botId),
-  // A handoff is a state edit that edits nothing. The client already switched
-  // which member answers and the request is already the last thing the user
-  // said, so a turn on the history as it stands is the whole of it.
   actionSchema: z.object({ type: z.literal("handoff") }),
   onAction: async () => chat.turn(),
   run: async ({ chatId, messages, tools, signal, clientData, streamText }) => {
     const instructions = await instructionsFor(chatId, clientData?.botId)
 
-    // Which member answers is the client's choice for this turn, and the next
-    // turn may pick another. Stamping the id on the assistant message is what
-    // lets a group chat read back who said what after a reload.
     chat.setUIMessageStreamOptions({
       messageMetadata: () => ({ botId: clientData?.botId }),
     })
 
-    // `system` is the one prompt the managed streamText owns. The AI SDK reads
-    // it as the model's instructions, and later injected context is appended
-    // to it. Passing `instructions` as well would replace that prompt.
     return streamText({
       model: chatModel(),
       system: instructions,

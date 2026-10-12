@@ -99,9 +99,6 @@ async function sandboxIdForChat(chatId: string): Promise<string> {
     .from(chatMembers)
     .innerJoin(bots, eq(chatMembers.botId, bots.id))
     .where(eq(chatMembers.chatId, chatId))
-    // `id` breaks the tie a group's single multi-row insert leaves in
-    // `joinedAt`, so this picks the member the prompt and the chunk below call
-    // the first one.
     .orderBy(asc(chatMembers.joinedAt), asc(bots.id))
     .limit(1)
 
@@ -144,10 +141,6 @@ async function openDesktop(sandbox: Sandbox): Promise<void> {
   desktopReady.add(sandbox.id)
 }
 
-// The sandbox id arrives as a thunk rather than a promise, and that is what
-// keeps a chat whose first member has no sandbox from killing the run: the
-// lookup used to happen once per turn, so a missing sandbox left a rejected
-// promise nobody awaited, which Node ends the process over.
 async function withSandbox<T>(
   sandboxId: () => Promise<string>,
   signal: AbortSignal | undefined,
@@ -289,9 +282,6 @@ export function computerTools(chatId: string) {
         "Run a shell command in the sandbox and return its exit code and output.",
       inputSchema: z.object({
         command: z.string().min(1).max(8_000),
-        // The model reaches for "" when it has no directory in mind, and the
-        // provider refuses the whole call when the schema rejects it, so the
-        // field takes an empty string and the code below reads it as absent.
         cwd: z.string().max(500).optional(),
       }),
       execute: async ({ command, cwd }, { abortSignal }) =>
