@@ -75,6 +75,7 @@ export type ChatSummaryData = {
   title: string
   age: string
   preview: string
+  unread: boolean
 }
 
 function chatAge(lastMessageAt: Date) {
@@ -143,6 +144,22 @@ function chatFace(chat: ChatWithBots): ChatFace {
   return { kind: "single", seed: chat.bots[0].avatar }
 }
 
+/**
+ * A chat holds an unseen reply when the bot spoke after the reader last opened
+ * it. A null cursor is unread rather than read, so the first reply to a chat
+ * that was never opened lights the dot.
+ */
+export function isChatUnread(chat: {
+  lastBotMessageAt: Date | null
+  lastReadAt: Date | null
+}): boolean {
+  if (chat.lastBotMessageAt === null) {
+    return false
+  }
+
+  return chat.lastReadAt === null || chat.lastBotMessageAt > chat.lastReadAt
+}
+
 export function toChatSummary(chat: ChatWithBots): ChatSummaryData {
   return {
     id: chat.id,
@@ -150,6 +167,7 @@ export function toChatSummary(chat: ChatWithBots): ChatSummaryData {
     title: chatTitle(chat),
     age: chatAge(chat.lastMessageAt),
     preview: chatPreview(chat),
+    unread: isChatUnread(chat),
   }
 }
 

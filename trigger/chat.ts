@@ -159,6 +159,31 @@ export const chatAgent = chat.agent({
   // inferred from a stream callback. `runId` plus `turn` is the same pair on a
   // retry, which keeps a retried run from billing the user twice.
   onTurnComplete: async ({ chatId, usage, runId, turn }) => {
+    // The bot's last word, which is what the sidebar's unread dot compares to
+    // the reader's cursor. It lands here rather than at `onTurnStart`, because
+    // a chat whose reply is still streaming is the working indicator's job.
+    // Guarded because the turn has already streamed to the reader: a blip here
+    // costs one dot, while a failed turn costs the reply they just watched.
+    try {
+      await database()
+        .update(chats)
+        .set({ lastBotMessageAt: new Date() })
+        .where(eq(chats.id, chatId))
+    } catch (flagError) {
+      console.error("failed to flag the bot's last message", {
+        chatId,
+        runId,
+        turn,
+        flagError,
+      })
+      Sentry.logger.error("failed to flag the bot's last message", {
+        "gbot.chat.id": chatId,
+        "gbot.run.id": runId,
+        "gbot.chat.turn": turn,
+        "gbot.error.name": errorName(flagError),
+      })
+    }
+
     if (!usage) {
       return
     }
