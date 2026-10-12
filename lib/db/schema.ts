@@ -28,9 +28,10 @@ export const bots = pgTable(
     job: text("job").notNull(),
     instructions: text("instructions"),
     sandboxId: text("sandbox_id"),
-    // When the sandbox was last touched. The gap since this instant, capped at
-    // the sandbox's auto-stop interval, is exactly the time it has been
-    // running, so this doubles as the accrual cursor for sandbox minutes.
+    // The cursor sandbox minutes accrue from. A touch bills the whole minutes
+    // since this instant, capped at the sandbox's auto-stop interval, and leaves
+    // the remainder under a minute on the cursor for the next window. Null means
+    // the sandbox has been running since `createdAt` with nothing billed yet.
     sandboxTouchedAt: timestamp("sandbox_touched_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
