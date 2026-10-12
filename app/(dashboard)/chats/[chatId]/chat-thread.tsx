@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { ChatAvatar } from "@/components/chat-avatar"
 import { useRefusalToast } from "@/components/refusal-toast"
+import { useTurnActivity } from "@/components/turn-activity"
 import type { UpgradeRequired } from "@/lib/billing"
 import type { BotOption } from "@/lib/bot"
 import { answeredSinceUser, handoffFromMessage } from "@/lib/chat"
@@ -179,10 +180,38 @@ function ChatThreadMessages({
   })
   const { sendAction } = useChatActions({ sendMessage })
   const { showRefusal } = useRefusalToast()
+  const { setTurnActive, handoffTurn } = useTurnActivity()
   const router = useRouter()
 
   const followed = useRef(new Set<string>())
   const wasBusy = useRef(false)
+  const turnActive = useRef(false)
+
+  // The sidebar's dot follows this thread's own status rather than the worker's
+  // marker, which the layout would only see after a refresh: the reader who is
+  // sitting in the chat is the one who needs the dot the moment the prompt
+  // leaves. Only the transitions publish, so a turn that streams for minutes
+  // cannot keep rewriting the instant its dot ages from.
+  useEffect(() => {
+    const active = status === "submitted" || status === "streaming"
+
+    if (active === turnActive.current) {
+      return
+    }
+
+    turnActive.current = active
+    setTurnActive(chatId, active)
+  }, [chatId, setTurnActive, status])
+
+  // Leaving mid-turn hands the dot to the store instead of dropping it, and
+  // leaving between turns hands back nothing: a finished turn is not working.
+  useEffect(() => {
+    return () => {
+      if (turnActive.current) {
+        handoffTurn(chatId)
+      }
+    }
+  }, [chatId, handoffTurn])
 
   // The sidebar's order, age, and preview come from the server layout, and the
   // turn writes them from the worker, which cannot revalidate the way a Server

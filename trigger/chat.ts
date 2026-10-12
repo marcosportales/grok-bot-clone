@@ -147,11 +147,14 @@ export const chatAgent = chat.agent({
     // Unguarded on purpose: two reads on this pool already succeeded, and a
     // transient failure here retries the run. Drizzle drops an undefined
     // preview from the update, so a prompt with no text keeps the old one.
+    // `activeTurnAt` is the sidebar's working signal, and a retried run replays
+    // this hook with the same values, so the write is idempotent.
     await database()
       .update(chats)
       .set({
         lastMessageAt: new Date(),
         lastMessagePreview: lastUserMessagePreview(uiMessages),
+        activeTurnAt: new Date(),
       })
       .where(eq(chats.id, chatId))
   },
@@ -164,10 +167,13 @@ export const chatAgent = chat.agent({
     // a chat whose reply is still streaming is the working indicator's job.
     // Guarded because the turn has already streamed to the reader: a blip here
     // costs one dot, while a failed turn costs the reply they just watched.
+    // This hook fires on an errored turn too, so an errored turn still clears
+    // the working marker; a run that dies before the hook is what the sidebar's
+    // staleness bound covers.
     try {
       await database()
         .update(chats)
-        .set({ lastBotMessageAt: new Date() })
+        .set({ lastBotMessageAt: new Date(), activeTurnAt: null })
         .where(eq(chats.id, chatId))
     } catch (flagError) {
       console.error("failed to flag the bot's last message", {
