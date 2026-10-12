@@ -1,4 +1,5 @@
 import { chat, defaultStorage } from "@trigger.dev/sdk/ai"
+import { stepCountIs } from "ai"
 import { z } from "zod"
 
 import { chatModel } from "@/lib/ai/model"
@@ -112,6 +113,7 @@ export const chatAgent = chat.agent({
       messages,
       tools,
       abortSignal: signal,
+      stopWhen: stepCountIs(15),
     })
   },
 })
