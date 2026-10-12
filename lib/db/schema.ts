@@ -86,6 +86,14 @@ export const chats = pgTable(
     lastMessageAt: timestamp("last_message_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // The bot's own last word, which the worker writes when a turn finishes.
+    // The unread dot compares this to `lastReadAt` rather than comparing the
+    // chat's last message, because the commonest way a chat gains a timestamp
+    // is the reader sending a prompt from inside it.
+    lastBotMessageAt: timestamp("last_bot_message_at", { withTimezone: true }),
+    // The reader's cursor, written when the chat page renders. Null means the
+    // chat has never been opened, so a bot message makes it unread.
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -143,6 +151,8 @@ export const insertGroupChatSchema = createInsertSchema(chats)
     kind: true,
     lastMessagePreview: true,
     lastMessageAt: true,
+    lastBotMessageAt: true,
+    lastReadAt: true,
     createdAt: true,
   })
   .extend({

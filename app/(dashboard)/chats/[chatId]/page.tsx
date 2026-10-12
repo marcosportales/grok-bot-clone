@@ -1,12 +1,13 @@
 import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 
+import { markChatRead } from "@/actions/chat"
 import { ChatHeader, type ChatHeaderEdit } from "@/components/chat-header"
 import { DesktopPanel, DesktopPanelProvider } from "@/components/desktop-panel"
 import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { missingFeature } from "@/lib/billing"
 import { toBotOption, toEditableBot } from "@/lib/bot"
-import { toChatSummary, toEditableGroupChat } from "@/lib/chat"
+import { isChatUnread, toChatSummary, toEditableGroupChat } from "@/lib/chat"
 import { missingAllowance } from "@/lib/usage/quota"
 import { getBots } from "@/queries/bot"
 import { getChatWithBots } from "@/queries/chat"
@@ -30,6 +31,16 @@ export default async function Page({
 
   if (!chat) {
     notFound()
+  }
+
+  // Rendering this page is the reader seeing the thread, which is the only
+  // read signal the app has. The write lives in the data path rather than in a
+  // component, so a cached render cannot skip it, and it runs only for a chat
+  // that was actually holding an unseen reply.
+  const unreadAtOpen = isChatUnread(chat)
+
+  if (unreadAtOpen) {
+    await markChatRead(chat.id)
   }
 
   const { title, face } = toChatSummary(chat)
@@ -65,6 +76,7 @@ export default async function Page({
                 chatId={chat.id}
                 bots={chat.bots.map(toBotOption)}
                 sendBlockedRefusal={sendBlockedRefusal}
+                unreadAtOpen={unreadAtOpen}
               />
             </div>
           </ResizablePanel>

@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react"
 
 import {
   loadChatTranscript,
+  markChatRead,
   mintChatAccessToken,
   startChatSession,
 } from "@/actions/chat"
@@ -49,11 +50,21 @@ type ChatThreadProps = {
   bots: BotOption[]
   /** The refusal sending would hit right now, or null when it would not. */
   sendBlockedRefusal: UpgradeRequired | null
+  /** The chat's read cursor was behind its bot's reply when this page rendered. */
+  unreadAtOpen: boolean
 }
 
 type ChatTransport = ReturnType<
   typeof useTriggerChatTransport<typeof chatAgent>
 >
+
+/**
+ * How long the read cursor waits for `onTurnComplete` to commit. Measured
+ * against the live worker, the hook lands within roughly 200ms of the stream
+ * closing, and a write issued on the spot lands on either side of it, so the
+ * cursor settles well past that window instead of racing it.
+ */
+const readSettleMs = 1_000
 
 type ChatThreadMessagesProps = {
   chatId: string
@@ -65,9 +76,30 @@ type ChatThreadMessagesProps = {
   sendBlockedRefusal: UpgradeRequired | null
 }
 
-function ChatThread({ chatId, bots, sendBlockedRefusal }: ChatThreadProps) {
+function ChatThread({
+  chatId,
+  bots,
+  sendBlockedRefusal,
+  unreadAtOpen,
+}: ChatThreadProps) {
   const [botId, setBotId] = useState(bots[0].id)
   const { refusalError } = useRefusalToast()
+  const router = useRouter()
+  const openedUnread = useRef(unreadAtOpen)
+
+  // The page wrote the read cursor while it rendered, but the row that has to
+  // lose its dot comes from the server layout, and a soft navigation reuses the
+  // layout from the client cache. One refresh fetches the cleared row. The
+  // effect cannot loop: the refresh's own render reads the cursor the page just
+  // wrote, so it arrives with nothing to clear.
+  useEffect(() => {
+    if (!openedUnread.current) {
+      return
+    }
+
+    openedUnread.current = false
+    router.refresh()
+  }, [router])
   const transport = useTriggerChatTransport<typeof chatAgent>({
     task: "chat",
     accessToken: async ({ chatId }) => {
@@ -149,18 +181,34 @@ function ChatThreadMessages({
 
   // The sidebar's order, age, and preview come from the server layout, and the
   // turn writes them from the worker, which cannot revalidate the way a Server
-  // Action does. Refreshing when the turn ends is what moves the row.
+  // Action does. Refreshing when the turn ends is what moves the row, and the
+  // read cursor moves in the same breath: the reply that just landed is one the
+  // reader watched arrive. The wait is for `onTurnComplete` to commit the bot's
+  // instant, which it can do a beat after the stream closes; a cursor written on
+  // the spot lands behind it on some turns and leaves the chat the reader is
+  // sitting in flagged on others. The timer is not cleared on unmount, because a
+  // reader who leaves a moment later still saw the reply.
   useEffect(() => {
     if (status === "submitted" || status === "streaming") {
       wasBusy.current = true
       return
     }
 
-    if (wasBusy.current) {
-      wasBusy.current = false
-      router.refresh()
+    if (!wasBusy.current) {
+      return
     }
-  }, [router, status])
+
+    wasBusy.current = false
+
+    setTimeout(() => {
+      void markChatRead(chatId)
+        .catch((error) => {
+          // A cursor that did not move costs one dot; the row still has to move.
+          console.error("failed to move the read cursor", error)
+        })
+        .finally(() => router.refresh())
+    }, readSettleMs)
+  }, [chatId, router, status])
 
   useEffect(() => {
     if (status !== "ready" || error != null) {

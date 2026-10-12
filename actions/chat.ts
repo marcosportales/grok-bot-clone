@@ -92,6 +92,27 @@ export async function loadChatTranscript(params: {
   return loadStoredTranscript(params)
 }
 
+/**
+ * Moves the reader's cursor to now. Opening a chat is the only read signal the
+ * app has, so the chat page calls this as it renders. The thread calls it again
+ * as a turn ends, and that call is sequenced before the thread's own refresh:
+ * the sidebar's flag comes from the server layout, the layout and the page
+ * render in the same pass, and a refresh on its own can read the sidebar while
+ * the page's write is still in flight, which flags the chat the reader is
+ * sitting in.
+ */
+export async function markChatRead(chatId: string): Promise<void> {
+  const { isAuthenticated, userId } = await auth()
+  if (!isAuthenticated) {
+    return
+  }
+
+  await db
+    .update(chats)
+    .set({ lastReadAt: new Date() })
+    .where(and(eq(chats.id, chatId), eq(chats.userId, userId)))
+}
+
 type GroupChatResult =
   | { ok: true; chat: { id: string; name: string } }
   | { ok: false; error: string }

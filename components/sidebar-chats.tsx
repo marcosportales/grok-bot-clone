@@ -34,7 +34,11 @@ function SidebarChats({ chats }: { chats: ChatSummaryData[] }) {
                   tooltip={chat.title}
                   className="h-auto group-data-[collapsible=icon]:justify-center"
                 >
-                  <ChatSummary {...chat} />
+                  {/* The reader is looking at the open chat, so it cannot hold
+                      an unseen reply even when the layout still says it does:
+                      a soft navigation reuses this layout from the client
+                      cache, and a reply can land mid-render. */}
+                  <ChatSummary {...chat} unread={chat.unread && !isActive} />
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )
