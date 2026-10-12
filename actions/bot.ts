@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/schema"
 import { createSandbox, deleteSandbox } from "@/lib/sandbox"
 import { missingAllowance } from "@/lib/usage/quota"
+import { accrueSandboxTime } from "@/lib/usage/sandbox"
 
 type BotResult =
   | { ok: true; bot: { id: string; name: string } }
@@ -153,6 +154,15 @@ export async function deleteBot(botId: string): Promise<BotResult> {
   }
 
   if (existing.sandboxId) {
+    try {
+      // The window the sandbox ran after its last touch closes here, while the
+      // row that holds the cursor is still there to bill it from.
+      await accrueSandboxTime(db, { botId, userId })
+    } catch (meteringError) {
+      // A delete the user asked for is not undone by its metering failing.
+      console.error("failed to record sandbox usage", { botId, meteringError })
+    }
+
     try {
       await deleteSandbox(existing.sandboxId)
     } catch (error) {
