@@ -12,13 +12,21 @@ type ChatAvatarProps = {
   seed: string
   animated?: boolean
   className?: string
+  // A face that stands for a named bot carries its name; a decorative one is
+  // left for a screen reader.
+  alt?: string
 }
 
-function ChatAvatar({ seed, animated = false, className }: ChatAvatarProps) {
+function ChatAvatar({
+  seed,
+  animated = false,
+  className,
+  alt = "",
+}: ChatAvatarProps) {
   return (
     <Image
       src={avatarDataUri(seed, animated)}
-      alt=""
+      alt={alt}
       width={size}
       height={size}
       // A data URI is already a vector; next/image serves it as-is.

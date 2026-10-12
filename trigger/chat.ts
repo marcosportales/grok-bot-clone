@@ -83,6 +83,13 @@ export const chatAgent = chat.agent({
   run: async ({ chatId, messages, tools, signal, clientData, streamText }) => {
     const instructions = await botInstructions(chatId, clientData?.botId)
 
+    // Which member answers is the client's choice for this turn, and the next
+    // turn may pick another. Stamping the id on the assistant message is what
+    // lets a group chat read back who said what after a reload.
+    chat.setUIMessageStreamOptions({
+      messageMetadata: () => ({ botId: clientData?.botId }),
+    })
+
     // `system` is the one prompt the managed streamText owns. The AI SDK reads
     // it as the model's instructions, and later injected context is appended
     // to it. Passing `instructions` as well would replace that prompt.

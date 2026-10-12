@@ -40,6 +40,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { ChatAvatar } from "@/components/chat-avatar"
 import type { BotOption } from "@/lib/bot"
+import { botIdFromMessage } from "@/lib/chat"
 import type { chatAgent } from "@/trigger/chat"
 
 import { ChatToolPart } from "./chat-tool"
@@ -162,8 +163,31 @@ function ChatThreadMessages({
                 return null
               }
 
+              // A group's transcript mixes members, and the assistant message
+              // is what says which one answered. A direct chat's header already
+              // names its single bot, so only a group draws a face.
+              const botId =
+                message.role === "assistant"
+                  ? botIdFromMessage(message)
+                  : undefined
+              const bot =
+                bots.length > 1 && botId
+                  ? bots.find((candidate) => candidate.id === botId)
+                  : undefined
+
               return (
-                <Message from={message.role} key={message.id}>
+                <Message
+                  from={message.role}
+                  className={bot ? "flex-row items-start gap-2" : undefined}
+                  key={message.id}
+                >
+                  {bot ? (
+                    <ChatAvatar
+                      seed={bot.avatar}
+                      alt={bot.name}
+                      className="mt-0.5 size-6"
+                    />
+                  ) : null}
                   <MessageContent>
                     {parts.map((part, partIndex) => {
                       if (part.type === "text") {

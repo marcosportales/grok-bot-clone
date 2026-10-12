@@ -1,6 +1,26 @@
+import type { UIMessage } from "ai"
 import { differenceInSeconds, formatDistanceToNowStrict } from "date-fns"
+import { z } from "zod"
 
 import type { ChatWithBots } from "@/queries/chat"
+
+// The one thing the chat agent writes onto an assistant message: which member
+// answered that turn.
+const botMessageMetadataSchema = z.object({ botId: z.string().min(1) })
+
+/**
+ * The bot that answered a message, or undefined when the message carries no
+ * such stamp: a user's own message, or an assistant one written before the
+ * agent tagged them.
+ *
+ * `metadata` comes back from the transcript as `unknown`, so it is parsed here
+ * rather than asserted.
+ */
+export function botIdFromMessage(message: UIMessage): string | undefined {
+  const parsed = botMessageMetadataSchema.safeParse(message.metadata)
+
+  return parsed.success ? parsed.data.botId : undefined
+}
 
 // A face is one seed for a direct chat and one seed per member for a group, so
 // a caller that has only the summary still cannot draw the wrong one.
