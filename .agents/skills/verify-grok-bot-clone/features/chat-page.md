@@ -118,9 +118,13 @@ Preconditions:
   `$CG eval "!!document.querySelector('[data-slot=dialog-content]')"` still prints
   `true`. Leave by
   `$CG click --role button --name "Close the fullscreen screen"`.
-- **A chat with no computer.** Open a chat whose first member has no sandbox, then
-  open the panel. The box reads `No screen` with `This bot has no screen yet.`, and
+- **A chat with no computer.** This needs a direct chat whose bot has no
+  `sandbox_id`, and every bot that owns a direct chat today has one, so treat it as
+  unreachable in a normal run. To reach it, delete a bot's sandbox out of band and
+  open its direct chat, then open the panel. The box reads `No screen` with
+  `This bot has no screen yet.`, and
   `$CG eval "!!document.querySelector('#chat-desktop iframe')"` prints `false`.
+  A group cannot stand in for this chat, because its toggle is disabled.
 - **Missing id.** Run `$CG open /chats/does-not-exist-xyz`, then `$CG text`. Stdout
   contains `404` and `This page could not be found.`, and it still contains the
   sidebar's `New` and `Search`, so the shell stayed around the missing page.
@@ -135,9 +139,14 @@ Preconditions:
 - The page gates on Clerk before it reads the id, so a signed-out request for a
   chat never shows the not-found page. It lands on the sign-in route instead.
 - An id owned by another account reads exactly like an unknown id: the same
-  not-found page. To prove that case you need a chat owned by a second account, so
-  treat it as unreachable until one exists. The unknown-id recipe covers the
-  rendering.
+  not-found page. The skill's second test account,
+  `grok-foreign-verify@example.com`, proves it. Sign in as that account
+  (see the [README](./README.md#signing-in)), then open a chat id owned by the
+  other account and confirm the same `404`. The account owns nothing until a drive
+  creates a bot for it, so create one first to prove the other direction.
+- The thread also renders a scroll-to-bottom control and, once a turn fails, a
+  `Retry` button (`chat-thread.tsx`). Neither is a mapped path, so a run that
+  reports the chat surface covered has not exercised them.
 - The header is a `sectionheader`, not a `banner`, because it sits inside the
   layout's `<main>`. A recipe that looks for a `banner` finds nothing.
 - The heading and its button share the chat's name. Use `--role heading` to read
