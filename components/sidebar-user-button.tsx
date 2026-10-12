@@ -1,6 +1,7 @@
 "use client"
 
 import { UserButton } from "@clerk/nextjs"
+import { GaugeIcon } from "lucide-react"
 
 import { useSidebar } from "@/components/ui/sidebar"
 
@@ -44,7 +45,15 @@ function SidebarUserButton() {
     <UserButton
       showName={!isCollapsed}
       appearance={isCollapsed ? collapsedAppearance : expandedAppearance}
-    />
+    >
+      <UserButton.MenuItems>
+        <UserButton.Link
+          href="/usage"
+          label="Usage"
+          labelIcon={<GaugeIcon className="size-4" />}
+        />
+      </UserButton.MenuItems>
+    </UserButton>
   )
 }
 
