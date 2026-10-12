@@ -1,9 +1,12 @@
 import * as Sentry from "@sentry/node"
 import { chat, defaultStorage } from "@trigger.dev/sdk/ai"
 import { stepCountIs } from "ai"
+import { eq } from "drizzle-orm"
 import { z } from "zod"
 
 import { chatModel, chatModelId } from "@/lib/ai/model"
+import { lastUserMessagePreview } from "@/lib/chat"
+import { chats } from "@/lib/db/schema"
 import { memoryFile } from "@/lib/memory"
 import { errorName } from "@/lib/sentry-logs"
 import { aiCostMicros } from "@/lib/usage/ai-cost"
@@ -133,13 +136,24 @@ export const chatAgent = chat.agent({
   // stop the spend before a model call is billed. The session's entitlement was
   // already checked at `startChatSession`, and the chat belongs to a paying user
   // by the time a turn starts, so the plain paid number is the right allowance.
-  onTurnStart: async ({ chatId }) => {
+  onTurnStart: async ({ chatId, uiMessages }) => {
     const group = await groupFor(chatId)
     const used = await usageTotal(database(), group.userId, "ai_tokens")
 
     if (used >= paidAllowance.ai_tokens) {
       throw new Error(meterLimitMessage.ai_tokens(paidAllowance.ai_tokens))
     }
+
+    // Unguarded on purpose: two reads on this pool already succeeded, and a
+    // transient failure here retries the run. Drizzle drops an undefined
+    // preview from the update, so a prompt with no text keeps the old one.
+    await database()
+      .update(chats)
+      .set({
+        lastMessageAt: new Date(),
+        lastMessagePreview: lastUserMessagePreview(uiMessages),
+      })
+      .where(eq(chats.id, chatId))
   },
   // The SDK hands this hook the finished turn's own usage, so nothing has to be
   // inferred from a stream callback. `runId` plus `turn` is the same pair on a
