@@ -1,11 +1,14 @@
-import { relations } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
+  check,
   index,
+  integer,
   pgEnum,
   pgTable,
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core"
 import { createInsertSchema } from "drizzle-zod"
 import { nanoid } from "nanoid"
@@ -25,6 +28,10 @@ export const bots = pgTable(
     job: text("job").notNull(),
     instructions: text("instructions"),
     sandboxId: text("sandbox_id"),
+    // When the sandbox was last touched. The gap since this instant, capped at
+    // the sandbox's auto-stop interval, is exactly the time it has been
+    // running, so this doubles as the accrual cursor for sandbox minutes.
+    sandboxTouchedAt: timestamp("sandbox_touched_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -160,3 +167,45 @@ export const updateGroupChatSchema = insertGroupChatSchema.extend({
 })
 
 export type UpdateGroupChat = z.infer<typeof updateGroupChatSchema>
+
+export const usageDimension = pgEnum("usage_dimension", [
+  "ai_tokens",
+  "sandbox_minutes",
+])
+
+export type UsageDimension = (typeof usageDimension.enumValues)[number]
+
+/**
+ * Append-only record of metered consumption. One row is one measured amount in
+ * one dimension, and the period it belongs to. `dedupe_key` makes a retried
+ * write land once, which matters because the AI side meters from inside a
+ * Trigger.dev task that can retry.
+ */
+export const usageEvents = pgTable(
+  "usage_events",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    userId: text("user_id").notNull(),
+    dimension: usageDimension("dimension").notNull(),
+    quantity: integer("quantity").notNull(),
+    costMicros: integer("cost_micros").notNull().default(0),
+    period: text("period").notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("usage_events_dedupe_key_idx").on(table.dedupeKey),
+    index("usage_events_user_period_dimension_idx").on(
+      table.userId,
+      table.period,
+      table.dimension
+    ),
+    check("usage_events_non_negative", sql`${table.quantity} >= 0 and ${table.costMicros} >= 0`),
+  ]
+)
+
+export type UsageEvent = typeof usageEvents.$inferSelect

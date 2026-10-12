@@ -17,6 +17,8 @@ export type GroupMember = {
 export type ChatGroup = {
   kind: "direct" | "group"
   name: string | null
+  /** The user the chat belongs to, and so the account usage is metered against. */
+  userId: string
   /**
    * Oldest first. `members[0]` is the member whose sandbox the whole group
    * works on, the one the chat page's desktop panel shows.
@@ -26,7 +28,7 @@ export type ChatGroup = {
 
 export async function groupFor(chatId: string): Promise<ChatGroup> {
   const [chat] = await database()
-    .select({ kind: chats.kind, name: chats.name })
+    .select({ kind: chats.kind, name: chats.name, userId: chats.userId })
     .from(chats)
     .where(eq(chats.id, chatId))
 
@@ -48,7 +50,7 @@ export async function groupFor(chatId: string): Promise<ChatGroup> {
     .where(eq(chatMembers.chatId, chatId))
     .orderBy(asc(chatMembers.joinedAt), asc(bots.id))
 
-  return { kind: chat.kind, name: chat.name, members }
+  return { kind: chat.kind, name: chat.name, userId: chat.userId, members }
 }
 
 type HandoffOutcome =

@@ -2,10 +2,14 @@ import { chat, defaultStorage } from "@trigger.dev/sdk/ai"
 import { stepCountIs } from "ai"
 import { z } from "zod"
 
-import { chatModel } from "@/lib/ai/model"
+import { chatModel, chatModelId } from "@/lib/ai/model"
 import { memoryFile } from "@/lib/memory"
+import { aiCostMicros } from "@/lib/usage/ai-cost"
+import { recordUsage, usageTotal } from "@/lib/usage/ledger"
+import { meterLimitMessage, paidAllowance } from "@/lib/usage/limits"
 
 import { botMemory, computerTools, memoryTools } from "./computer"
+import { database } from "./db"
 import {
   groupFor,
   handoffTools,
@@ -120,6 +124,55 @@ export const chatAgent = chat.agent({
   tools: ({ chatId, clientData }) => chatTools(chatId, clientData?.botId),
   actionSchema: z.object({ type: z.literal("handoff") }),
   onAction: async () => chat.turn(),
+  // A turn after the first one of a page session goes from the browser to
+  // Trigger.dev directly, so no Server Action is in the path. A hook that throws
+  // fails the turn before `run()` executes, which is the only place that can
+  // stop the spend before a model call is billed. The session's entitlement was
+  // already checked at `startChatSession`, and the chat belongs to a paying user
+  // by the time a turn starts, so the plain paid number is the right allowance.
+  onTurnStart: async ({ chatId }) => {
+    const group = await groupFor(chatId)
+    const used = await usageTotal(database(), group.userId, "ai_tokens")
+
+    if (used >= paidAllowance.ai_tokens) {
+      throw new Error(meterLimitMessage.ai_tokens(paidAllowance.ai_tokens))
+    }
+  },
+  // The SDK hands this hook the finished turn's own usage, so nothing has to be
+  // inferred from a stream callback. `runId` plus `turn` is the same pair on a
+  // retry, which keeps a retried run from billing the user twice.
+  onTurnComplete: async ({ chatId, usage, runId, turn }) => {
+    if (!usage) {
+      return
+    }
+
+    const quantity = (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0)
+
+    if (quantity <= 0) {
+      return
+    }
+
+    try {
+      const group = await groupFor(chatId)
+
+      await recordUsage(database(), {
+        userId: group.userId,
+        dimension: "ai_tokens",
+        quantity,
+        costMicros: aiCostMicros(chatModelId(), usage),
+        dedupeKey: `ai:${runId}:${turn}`,
+      })
+    } catch (meteringError) {
+      // A failed measurement must not fail the turn the user is watching. The
+      // undercount is bounded by one turn and is logged for the operator.
+      console.error("failed to record AI token usage", {
+        chatId,
+        runId,
+        turn,
+        meteringError,
+      })
+    }
+  },
   run: async ({ chatId, messages, tools, signal, clientData, streamText }) => {
     const instructions = await instructionsFor(chatId, clientData?.botId)
 

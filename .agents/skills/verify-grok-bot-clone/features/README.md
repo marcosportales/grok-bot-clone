@@ -4,18 +4,21 @@ This directory is the maintained source for verifying the user-facing behavior o
 `grok-bot-clone`. Read this index before driving the app, then use the matching
 feature file as the recipe.
 
-At the current commit the app has four page routes and one endpoint: the root
-page, the chat page at `/chats/<id>`, the `/sign-in` and `/sign-up` routes, and
-the `/api/health` endpoint. The root page and the chat page both sit behind Clerk
-and both render inside the dashboard shell, which is the sidebar. A signed-out
-visitor to either one lands on `/sign-in` and never sees the shell. Eight
+At the current commit the app has six page routes and one endpoint: the root
+page, the chat page at `/chats/<id>`, the `/sign-in` and `/sign-up` routes, the
+`/pricing` route, the `/usage` route, and the `/api/health` endpoint. The root
+page, the chat page, the pricing page, and the usage page all sit behind Clerk
+and all render inside the dashboard shell, which is the sidebar. A signed-out
+visitor to any of them lands on `/sign-in` and never sees the shell. Ten
 behaviors are mapped: the root page, the sidebar shell, the bot dialog, the chat
 page, the group chat and its handoff, the dark-mode toggle, the Clerk auth
-surface, and the health endpoint. Browser-side persistence is
+surface, the plan gate with its pricing page, the usage page, and the health
+endpoint. Browser-side persistence is
 `localStorage["theme"]` and the `sidebar_state` cookie; the other durable state
 is the `bots`, `chats`, and `chat_members` tables that the bot dialog and the
-group dialog write. The map covers everything a user can touch today. Add a
-feature file whenever a new route, control, or command appears.
+group dialog write. Plan entitlement is not stored here at all: it is read from
+the Clerk session on every request. The map covers everything a user can touch
+today. Add a feature file whenever a new route, control, or command appears.
 
 ## Baseline preconditions
 
@@ -167,7 +170,13 @@ required state, commands, and observable proof.
   members, and deleting a group.
 - [Dark mode toggle](./theme-toggle.md) covers the `d` hotkey, system-preference
   following, and persistence across reloads.
+- [Billing gate and pricing page](./billing.md) covers the free-plan refusal on
+  bot creation, the chat composer, and the desktop panel, the upgrade toast and
+  its route to `/pricing`, checkout on the paid plan, and the paths that stay
+  open after a downgrade.
 - [Auth](./auth.md) covers the gate, the `/sign-in` and `/sign-up` routes, and the
   signed-in account panel.
 - [API health](./api-health.md) covers the `/api/health` status, body, and content
   type.
+- [Usage](./usage.md) covers the `/usage` meters, the amounts and fills they show,
+  the reset window, and the account panel item that reaches the page.

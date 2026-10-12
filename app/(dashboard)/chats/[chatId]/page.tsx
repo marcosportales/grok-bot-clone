@@ -4,8 +4,10 @@ import { notFound } from "next/navigation"
 import { ChatHeader, type ChatHeaderEdit } from "@/components/chat-header"
 import { DesktopPanel, DesktopPanelProvider } from "@/components/desktop-panel"
 import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { missingFeature } from "@/lib/billing"
 import { toBotOption, toEditableBot } from "@/lib/bot"
 import { toChatSummary, toEditableGroupChat } from "@/lib/chat"
+import { missingAllowance } from "@/lib/usage/quota"
 import { getBots } from "@/queries/bot"
 import { getChatWithBots } from "@/queries/chat"
 
@@ -16,7 +18,12 @@ export default async function Page({
 }: {
   params: Promise<{ chatId: string }>
 }) {
-  await auth.protect()
+  // The same two rules the action applies, in the same order, so the composer
+  // cannot disagree with the server about whether sending is allowed.
+  const { has, userId } = await auth.protect()
+  const sendBlockedRefusal =
+    missingFeature(has, "bots") ??
+    (await missingAllowance(has, userId, "ai_tokens"))
 
   const { chatId } = await params
   const chat = await getChatWithBots(chatId)
@@ -57,6 +64,7 @@ export default async function Page({
                 key={chat.id}
                 chatId={chat.id}
                 bots={chat.bots.map(toBotOption)}
+                sendBlockedRefusal={sendBlockedRefusal}
               />
             </div>
           </ResizablePanel>

@@ -6,10 +6,11 @@ description: Drive and verify the grok-bot-clone Next.js app (a local web UI) wi
 # Verify grok-bot-clone
 
 `grok-bot-clone` is a Next.js 16 (App Router, Turbopack) + shadcn/ui app on Clerk
-and Postgres. Its user surfaces are four page routes (`/`, `/chats/<id>`,
-`/sign-in`, `/sign-up`) and the `/api/health` JSON endpoint. The root page and the
-chat page are behind Clerk and render inside a sidebar shell, so a signed-out
-visitor lands on `/sign-in` and both pages need a session. This skill launches the
+and Postgres. Its user surfaces are six page routes (`/`, `/chats/<id>`,
+`/sign-in`, `/sign-up`, `/pricing`, `/usage`) and the `/api/health` JSON endpoint.
+Every route but the two auth routes and the health endpoint sits behind Clerk and
+renders inside a sidebar shell, so a signed-out visitor lands on `/sign-in` and
+needs a session. This skill launches the
 app in an owned dev server plus an owned headless Chrome, lets you drive it like a
 user, and captures proof artifacts.
 
@@ -131,7 +132,8 @@ Selectors to prefer in this app:
 - Chat list: `link` rows named `<title> <age> <preview>`, with `aria-current=page`
   on the open chat.
 - Account: ARIA `button` named `Open user menu`, and `dialog "Account panel"` with
-  `Manage account` and `Sign out`.
+  `Manage account`, `Usage`, and `Sign out`. Clerk renders the `Usage` item as a
+  button that navigates, and it reaches `/usage`.
 - Bot dialog: ARIA `dialog` named `New bot` or `Edit bot`, with textboxes `Name`,
   `Job`, and `How it should work`, and the delete confirmation
   `alertdialog "Delete <name>?"`.

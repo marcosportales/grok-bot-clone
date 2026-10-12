@@ -29,8 +29,8 @@ control. The dialogs it starts are [Bot dialog](./bots.md) and
 - `sidebar-active-chat` the open chat's row carries `aria-current="page"`.
 - `sidebar-empty` an account with no chats shows an empty list and no empty-state
   copy.
-- `sidebar-account` `Open user menu` opens the account panel with `Manage account`
-  and `Sign out`.
+- `sidebar-account` `Open user menu` opens the account panel with `Manage account`,
+  `Usage`, and `Sign out`.
 
 ## How to get to it (user POV)
 
@@ -39,8 +39,8 @@ control. The dialogs it starts are [Bot dialog](./bots.md) and
 - Choose `New` in the rail header, then `Create new bot` or `Create group chat`.
 - Choose `Search` in the rail header, or press `⌘K` or `Ctrl+K`, then type a query.
 - Choose a chat row in the list, or choose a row in the palette, to open that chat.
-- Choose `Open user menu` in the rail footer to reach `Manage account` and
-  `Sign out`.
+- Choose `Open user menu` in the rail footer to reach `Manage account`, `Usage`,
+  and `Sign out`.
 
 ## Driving it with control-grok
 
@@ -112,8 +112,8 @@ Preconditions:
 - **Account panel.** Run `$CG click --role button --name "Open user menu"`, then
   `sleep 2`, then
   `$CG snapshot "$ART/sidebar-account.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
-  The tree holds `dialog "Account panel"` with `button "Manage account"` and
-  `button "Sign out"`.
+  The tree holds `dialog "Account panel"` with `button "Manage account"`,
+  `button "Usage"`, and `button "Sign out"`.
 - **Visual proof.** Run
   `$CG screenshot "$ART/sidebar-expanded.png" --hide "nextjs-portal,next-route-announcer"`
   expanded and

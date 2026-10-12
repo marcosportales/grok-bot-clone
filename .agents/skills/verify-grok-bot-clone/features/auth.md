@@ -5,7 +5,8 @@ redirects to the sign-in route with a `redirect_url` back to it. The `/sign-in` 
 `/sign-up` routes render Clerk's forms as full pages, and each form links to the
 other. There is no site header and no sign-in modal, so the page form is the only
 way in. Signed in, the account control sits in the sidebar footer, and it opens a
-panel holding `Manage account` and `Sign out`. The shell the control lives in is
+panel holding `Manage account`, `Usage`, and `Sign out`. The shell the control
+lives in is
 [Sidebar](./sidebar.md).
 
 ## Sub-features
@@ -20,8 +21,8 @@ panel holding `Manage account` and `Sign out`. The shell the control lives in is
 - `auth-no-header` no page renders a `Sign in` or `Sign up` button.
 - `auth-account` signing in replaces the signed-out routes with a sidebar footer
   control named `Open user menu`.
-- `auth-panel` the account control opens a panel holding `Manage account` and
-  `Sign out`.
+- `auth-panel` the account control opens a panel holding `Manage account`,
+  `Usage`, and `Sign out`.
 - `auth-signout` `Sign out` ends the session and returns the reader to the sign-in
   route.
 - `auth-signed-in-redirect` signed in, `/sign-in` and `/sign-up` both redirect
@@ -83,8 +84,8 @@ Preconditions:
 - **Account panel.** Run `$CG click --role button --name "Open user menu"`, then
   `sleep 2`, then
   `$CG snapshot "$ART/auth-account-panel.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
-  The tree holds `dialog "Account panel"` with `button "Manage account"` and
-  `button "Sign out"`.
+  The tree holds `dialog "Account panel"` with `button "Manage account"`,
+  `button "Usage"`, and `button "Sign out"`.
 - **Signed-in redirect.** Still signed in, run `$CG open /sign-in`, `sleep 4`, then
   `$CG eval "location.pathname"`. It prints `"/"`. Do the same for `/sign-up`.
 - **Sign out.** Run `$CG click --role button --name "Open user menu"`, then
