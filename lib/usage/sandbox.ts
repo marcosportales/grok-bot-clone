@@ -20,7 +20,7 @@ export const sandboxAutoStopMinutes = 15
  * own pool.
  *
  * Metering is never a reason to throw. The caller is a tool call in a turn the
- * user is watching, and a missing row or a first touch simply accrues nothing.
+ * user is watching, and a missing row simply accrues nothing.
  */
 export async function accrueSandboxTime(
   db: Database,
@@ -34,7 +34,7 @@ export async function accrueSandboxTime(
 
   return db.transaction(async (tx) => {
     const [bot] = await tx
-      .select({ touchedAt: bots.sandboxTouchedAt })
+      .select({ touchedAt: bots.sandboxTouchedAt, createdAt: bots.createdAt })
       .from(bots)
       .where(eq(bots.id, input.botId))
       .for("update")
@@ -43,15 +43,14 @@ export async function accrueSandboxTime(
       return 0
     }
 
-    // A null cursor is the first touch: nothing has been running for us yet, so
-    // there is nothing to bill and only the cursor to set.
-    const cursor = bot.touchedAt
-    const minutes = cursor
-      ? Math.min(
-          Math.floor((at.getTime() - cursor.getTime()) / 60_000),
-          sandboxAutoStopMinutes
-        )
-      : 0
+    // A bot with no cursor has been running since it was created: the sandbox
+    // is started and written to before the row exists, so creation opens its
+    // window, not the first touch.
+    const cursor = bot.touchedAt ?? bot.createdAt
+    const minutes = Math.min(
+      Math.floor((at.getTime() - cursor.getTime()) / 60_000),
+      sandboxAutoStopMinutes
+    )
 
     await tx
       .update(bots)
