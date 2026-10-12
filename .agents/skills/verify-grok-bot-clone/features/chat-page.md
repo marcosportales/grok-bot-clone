@@ -21,6 +21,8 @@ group chat shares this route and adds a picker, so its own behavior is in
   ([Group chat](./group-chat.md)).
 - `chat-thread` the body shows the conversation's messages, and `Send a message`
   while the conversation is empty.
+- `chat-loading` the body shows a centered spinner while the transcript loads, and
+  the messages replace it when they arrive.
 - `chat-composer` the composer holds the `What would you like to know?` textbox and
   the `Submit` button.
 - `chat-send` submitting the composer appends the message to the thread, and the
@@ -84,6 +86,18 @@ Preconditions:
 - **Read the thread.** The message text never appears in an ARIA snapshot, because
   a message body is an unnamed `paragraph` and the snapshot drops those. Use
   `$CG text` or the `innerText` read above for the words.
+- **The loading state.** From any chat page, arm a delay on the Server Actions and
+  a sampler, then open a chat and read the transitions:
+  `$CG eval "const of=window.fetch;window.fetch=async(i,n)=>{let a=false;try{const h=n&&n.headers;a=!!(h&&(h.get?h.get('next-action'):(h['next-action']||h['Next-Action'])))}catch(e){};if(a){await new Promise(r=>setTimeout(r,2000))}return of(i,n)}"`,
+  then
+  `$CG eval "window.__p=[];window.__t0=performance.now();window.__iv=setInterval(()=>window.__p.push([Math.round(performance.now()-window.__t0),!!document.querySelector('#chat [data-slot=spinner]'),!!document.querySelector('[role=log]')]),16);'armed'"`,
+  then `$CG click "[href='/chats/<id>']"`, then wait 9 seconds, then
+  `$CG eval "clearInterval(window.__iv);JSON.stringify(window.__p.filter((r,i,a)=>i===0||r.slice(1).join('|')!==a[i-1].slice(1).join('|')))"`.
+  It prints three states in order: `[t,false,false]` before the page swaps,
+  `[t,true,false]` while the transcript loads, then `[t,false,true]` once the
+  messages are up, and never a state with both true. Without the delay the middle
+  state lasts about 600ms, which the sampler still catches, but the delay is what
+  makes it long enough to screenshot.
 - **Toggle the desktop panel.** Run `$CG click --role button --name "Toggle Desktop"`,
   then
   `$CG eval "[...document.querySelectorAll('[data-panel]')].map((p) => p.id + ':' + Math.round(p.getBoundingClientRect().width))"`,
@@ -160,8 +174,12 @@ Preconditions:
   carries that name. On this page it is the only one.
 - The closed search palette leaves a `heading "Search chats"` in the tree here too.
   See [Sidebar](./sidebar.md#gotchas).
-- The transcript loads after the first paint, so the thread is briefly empty even
-  on a chat with history. Wait for a message before asserting on one.
+- The transcript loads after the first paint, so the thread shows the spinner for
+  a moment even on a chat with history. Wait for `[role=log]` before asserting on
+  a message.
+- `[data-slot=spinner]` alone is ambiguous here. The desktop panel's sandbox
+  overlay renders one too, hidden inside `#chat-desktop`, so an unscoped query
+  reports `true` before the thread has anything to show. Scope it to `#chat`.
 - `snapshot` drops unnamed `paragraph` nodes, and a message body is one. Pair every
   assertion about what a message says with `$CG text` or an `innerText` read of
   `[role=log]`.
