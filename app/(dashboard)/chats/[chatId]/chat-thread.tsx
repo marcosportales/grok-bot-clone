@@ -66,9 +66,6 @@ type ChatThreadMessagesProps = {
 }
 
 function ChatThread({ chatId, bots }: ChatThreadProps) {
-  // A group chat picks which member answers. The choice lives on the transport
-  // rather than on each message, so the first turn's boot metadata carries it
-  // as well as every later append.
   const [botId, setBotId] = useState(bots[0].id)
   const transport = useTriggerChatTransport<typeof chatAgent>({
     task: "chat",
@@ -123,14 +120,9 @@ function ChatThreadMessages({
   })
   const { sendAction } = useChatActions({ sendMessage })
 
-  // The handoffs this thread has answered already. Following one means
-  // switching the member that answers and asking the agent for the turn, and
-  // the call id is what keeps a re-render, a reload, or a Strict Mode double
-  // run from asking for that turn twice.
   const followed = useRef(new Set<string>())
 
   useEffect(() => {
-    // The handoff only means anything once the turn that called it is over.
     if (status !== "ready" || error != null) {
       return
     }
@@ -148,21 +140,14 @@ function ChatThreadMessages({
     followed.current.add(handoff.toolCallId)
     setBotId(handoff.botId)
 
-    // A handoff to a member who already answered this request would start the
-    // same exchange over, so the picker moves to them and the user decides
-    // whether to send again.
     if (answeredSinceUser(messages).includes(handoff.botId)) {
       return
     }
 
-    // The turn the action asks for reads the member back off the transport, so
-    // this is what makes the member named in the handoff the one who answers.
     transport.setClientData({ botId: handoff.botId })
     void sendAction({ type: "handoff" })
   }, [error, messages, sendAction, setBotId, status, transport])
 
-  // The select lists the ids, and the trigger draws the face and the name of
-  // the bot the current id names.
   const activeBot = bots.find((bot) => bot.id === botId) ?? bots[0]
 
   function handleSubmit(message: PromptInputMessage) {
@@ -207,9 +192,6 @@ function ChatThreadMessages({
                 return null
               }
 
-              // A group's transcript mixes members, and the assistant message
-              // is what says which one answered. A direct chat's header already
-              // names its single bot, so only a group draws a face.
               const botId =
                 message.role === "assistant"
                   ? botIdFromMessage(message)
@@ -276,13 +258,9 @@ function ChatThreadMessages({
       ) : null}
       <PromptInput className="px-4 pb-4" onSubmit={handleSubmit}>
         <PromptInputTextarea />
-        {/* The picker is a group's alone, and `mr-auto` keeps the submit where
-            a direct chat's footer puts it. */}
         <PromptInputFooter className="justify-end">
           {bots.length > 1 ? (
             <PromptInputTools className="mr-auto">
-              {/* The vendored wrapper types the select's value as unknown, so
-                  the chosen id is narrowed before it reaches state. */}
               <PromptInputSelect
                 value={botId}
                 onValueChange={(value) => {
@@ -293,9 +271,6 @@ function ChatThreadMessages({
               >
                 <PromptInputSelectTrigger aria-label="Choose a bot">
                   <ChatAvatar seed={activeBot.avatar} className="size-4" />
-                  {/* The vendored wrapper takes the name through the value's
-                      render prop; its own label lookup needs an `items` prop
-                      the wrapper cannot pass. */}
                   <PromptInputSelectValue>
                     {(value: unknown) =>
                       bots.find((bot) => bot.id === value)?.name ?? ""

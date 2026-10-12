@@ -19,16 +19,6 @@ import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel } from "@/components/ui/resizable"
 import { SandboxScreen } from "@/components/sandbox-screen"
 
-/**
- * The desktop panel is the strip to the right of a conversation, and it holds
- * the screen of the computer the chat runs on. The screen previews there and
- * opens fullscreen when it is clicked.
- *
- * The group belongs to the page, and the button and the panel sit on opposite
- * sides of it, so the state they share lives here, above both. The panel keeps
- * its own width, and `onResize` is the only writer of `open`, so dragging the
- * separator to the edge leaves the button reporting what the panel did.
- */
 type DesktopPanelState = {
   open: boolean
   canOpen: boolean
@@ -60,10 +50,6 @@ function DesktopPanelProvider({
 }) {
   const panelRef = usePanelRef()
   const [open, setOpen] = useState(false)
-  // Collapsing remembers the width the reader last dragged to, so opening the
-  // panel again returns to it. There is nothing to remember the first time, and
-  // a collapsed panel would otherwise open back to its minimum, which leaves it
-  // pinned there for one arrow key to slam shut.
   const opened = useRef(false)
 
   const value: DesktopPanelState = {
@@ -113,8 +99,6 @@ function DesktopPanel({
 
   return (
     <>
-      {/* The separator goes away with the panel, so a closed panel leaves the
-          conversation flush with the edge of the window. */}
       {open ? <ResizableHandle id="chat-desktop-handle" withHandle /> : null}
       <ResizablePanel
         id="chat-desktop"
@@ -122,13 +106,9 @@ function DesktopPanel({
         collapsible
         collapsedSize="0%"
         defaultSize="0%"
-        // The narrowest the panel can be dragged to before it collapses to
-        // nothing rather than starving the conversation beside it.
         minSize="25%"
         onResize={onResize}
       >
-        {/* The screen mounts with the panel and stays mounted, because the
-            reader closing the panel is not a reason to drop the connection. */}
         <SandboxScreen chatId={chatId} botName={botName} active={open} />
       </ResizablePanel>
     </>
@@ -139,8 +119,6 @@ function DesktopPanelToggle() {
   const { open, canOpen, toggle } = useDesktopPanel()
 
   return (
-    // Below `sm` the panel would take more of the width than the conversation
-    // it sits beside, so the control is out of reach until there is room.
     <Button
       variant="ghost"
       size="icon"

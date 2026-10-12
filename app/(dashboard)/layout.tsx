@@ -9,9 +9,6 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // SidebarProvider writes this cookie on every toggle, so reading it back seeds
-  // the first render. A reload then paints the width the reader left behind
-  // instead of the expanded one it would correct a moment later.
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get(SIDEBAR_COOKIE_NAME)?.value !== "false"
 

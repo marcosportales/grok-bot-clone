@@ -14,10 +14,6 @@ import {
 } from "@/components/ui/empty"
 import { Spinner } from "@/components/ui/spinner"
 
-/**
- * What the screen is doing. One value, so a picture and a load cannot both be
- * current, and `refreshing` only exists where there is a picture to keep.
- */
 type ScreenState =
   | { status: "idle" }
   | { status: "loading" }
@@ -30,19 +26,6 @@ type MoveableHost = HTMLElement & {
   moveBefore?: (node: Node, child: Node | null) => void
 }
 
-/**
- * Puts `node` in `host` without discarding what is running inside it.
- *
- * `appendChild` tears an iframe down and builds another one, and a new noVNC
- * page means a new connection and a blank screen until it is up again.
- * `moveBefore` is the state-preserving move, so the one connection the screen
- * made when it first loaded survives the trip to the fullscreen dialog and
- * back. A browser without it reconnects instead and still works.
- *
- * `moveBefore` moves a node rather than placing one, and refuses a node that is
- * not in a document yet. A screen that has just been built is placed, and every
- * trip after that is moved.
- */
 function moveInto(host: MoveableHost, node: Node): void {
   if (node.parentNode && host.moveBefore) {
     host.moveBefore(node, null)
@@ -52,19 +35,6 @@ function moveInto(host: MoveableHost, node: Node): void {
   host.appendChild(node)
 }
 
-/**
- * The chat's computer screen, once, shown twice.
- *
- * The panel is a preview: the screen is really running underneath, and it
- * cannot be typed into there because a click on it is what opens the dialog.
- * The dialog is where the same screen takes input, which is why the two hold
- * one iframe rather than one each. `moveInto` moves that one element between
- * them, so nothing reconnects.
- *
- * The URL is asked for when the panel is first opened, never on page load.
- * Opening it can start a stopped sandbox, and a chat that is only being read
- * should not be starting computers.
- */
 function SandboxScreen({
   chatId,
   botName,
@@ -104,10 +74,6 @@ function SandboxScreen({
     void request()
   }, [active, request])
 
-  /**
-   * One iframe for as long as the page lives. Rebuilding it is the reconnect
-   * the two hosts share it to avoid, so it is created here and then only moved.
-   */
   useEffect(() => {
     if (!url) {
       return
@@ -129,9 +95,6 @@ function SandboxScreen({
     }
   }, [url, botName])
 
-  // The dialog builds its popup one render after it opens, so its host has to
-  // arrive as state. An effect reading a ref would run while the ref was still
-  // empty and never be told the host had shown up.
   const attachDialogHost = useCallback((node: HTMLDivElement | null) => {
     setDialogHost(node)
   }, [])
@@ -148,8 +111,6 @@ function SandboxScreen({
       moveInto(host, frame)
     }
 
-    // The preview is for looking at. Keyboard focus reaches the screen only in
-    // the dialog, where a key is meant for the computer rather than the page.
     frame.tabIndex = fullscreen ? 0 : -1
 
     if (fullscreen) {
@@ -168,8 +129,6 @@ function SandboxScreen({
     const frame = frameRef.current
     const host = inlineHost.current
 
-    // The frame goes back before the dialog takes its host away, so the move
-    // still has a document to preserve and the connection is not restarted.
     if (frame && host && !host.contains(frame)) {
       moveInto(host, frame)
     }
@@ -217,9 +176,6 @@ function SandboxScreen({
 
       <Dialog
         open={fullscreen}
-        // Pressing Escape or typing into a computer is how a reader talks to the
-        // screen, so neither may close the dialog over it. The close button is
-        // the one way out.
         onOpenChange={(next) => {
           if (next) {
             setFullscreen(true)
@@ -256,13 +212,6 @@ function SandboxScreen({
   )
 }
 
-/**
- * What covers the screen's box while there is no screen in it.
- *
- * One switch rather than one condition per part, because every state that is
- * not `ready` has no URL, and a pair of independent conditions put the failure
- * and the wait on top of each other.
- */
 function ScreenOverlay({ screen }: { screen: ScreenState }) {
   switch (screen.status) {
     case "failed":

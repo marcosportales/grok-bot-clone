@@ -14,8 +14,6 @@ import {
 export default async function Page() {
   await auth.protect()
 
-  // auth.protect() reads cookies, so this renders per request: a fresh seed
-  // means a new face on every refresh.
   const seed = nanoid()
 
   return (
