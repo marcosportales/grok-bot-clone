@@ -40,7 +40,7 @@ group chat shares this route and adds a picker, so its own behavior is in
 - `chat-screen-missing` a chat whose computer has no sandbox shows `No screen`
   instead of an empty box.
 - `chat-missing` an unknown id renders the not-found page, with the shell still
-  around it.
+  around it ([Not-found pages](./not-found.md)).
 
 ## How to get to it (user POV)
 
@@ -144,8 +144,10 @@ Preconditions:
   `$CG eval "!!document.querySelector('#chat-desktop iframe')"` prints `false`.
   A group cannot stand in for this chat, because its toggle is disabled.
 - **Missing id.** Run `$CG open /chats/does-not-exist-xyz`, then `$CG text`. Stdout
-  contains `404` and `This page could not be found.`, and it still contains the
-  sidebar's `New` and `Search`, so the shell stayed around the missing page.
+  contains `Chat not found`, the two reasons a chat link fails, and
+  `Back to chats`, and it still contains the sidebar's `New` and `Search`, so the
+  shell stayed around the missing page. The document response is `404`. The copy,
+  the status, and what the shell keeps are [Not-found pages](./not-found.md).
 - **The gate.** Sign out, then run `$CG open /chats/<id>` and
   `$CG eval "location.pathname + location.search"`. The path starts with
   `"/sign-in?redirect_url="` and the query decodes to the app URL for that chat.
@@ -160,7 +162,7 @@ Preconditions:
   not-found page. The skill's second test account,
   `grok-foreign-verify@example.com`, proves it. Sign in as that account
   (see the [README](./README.md#signing-in)), then open a chat id owned by the
-  other account and confirm the same `404`. The account owns nothing until a drive
+  other account and confirm the same page. The account owns nothing until a drive
   creates a bot for it, so create one first to prove the other direction.
 - The thread also renders a scroll-to-bottom control and, once a turn fails, a
   `Retry` button (`chat-thread.tsx`). Neither is a mapped path, so a run that
