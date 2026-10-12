@@ -36,6 +36,7 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { ChatAvatar } from "@/components/chat-avatar"
 import { useRefusalToast } from "@/components/refusal-toast"
 import type { UpgradeRequired } from "@/lib/billing"
@@ -133,7 +134,11 @@ function ChatThread({
   } = useLoadTranscript(chatId, loadChatTranscript, { transport })
 
   if (isLoading) {
-    return <div className="flex min-h-0 flex-1 flex-col" />
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Spinner className="size-6 text-muted-foreground" />
+      </div>
+    )
   }
 
   if (error) {
