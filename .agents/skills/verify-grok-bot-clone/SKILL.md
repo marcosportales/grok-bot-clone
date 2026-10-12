@@ -1,6 +1,6 @@
 ---
 name: verify-grok-bot-clone
-description: Drive and verify the grok-bot-clone Next.js app (a local web UI) with headless Chrome over the DevTools Protocol. Use when you need to prove the Clerk-gated home page or chat page renders, that the sidebar shell works, that the bot dialog creates, edits, and deletes a row, that a group chat hands a request to another member, or that the dark-mode hotkey works, capture screenshots or ARIA snapshots, or reproduce a UI bug in this repo without installing a test framework.
+description: Drive and verify the grok-bot-clone Next.js app (a local web UI) with headless Chrome over the DevTools Protocol. Use when you need to prove the Clerk-gated home page or chat page renders, that the sidebar shell works, that the bot dialog creates, edits, and deletes a row, that the group dialog edits and deletes a group, that a group chat hands a request to another member, or that the dark-mode hotkey works, capture screenshots or ARIA snapshots, or reproduce a UI bug in this repo without installing a test framework.
 ---
 
 # Verify grok-bot-clone
@@ -142,9 +142,12 @@ Selectors to prefer in this app:
   `Stop` while a turn streams.
 - Group chat: the composer's `combobox "Choose a bot"` picks the member who
   answers, and a handoff renders as `button "Handed off to <name> Completed"`. A
-  group's header is a plain `heading` with a disabled `button "Toggle Desktop"`.
+  group's header is a `button` named after the group that opens the
+  `Edit group chat` dialog, beside a disabled `button "Toggle Desktop"`.
 - Group dialog: `dialog "New group chat"` with `textbox "Name"` and one
-  `checkbox "<bot name>"` per bot.
+  `checkbox "<bot name>"` per bot. The same dialog in edit mode is
+  `dialog "Edit group chat"`, with the group's current members checked and a
+  `button "Delete"` in its footer beside `Cancel` and `Save changes`.
 - Desktop panel: `button "Toggle Desktop"` opens the panel, `button "Refresh the
   screen"` asks for the screen again, and the preview is `button "Open <bot>'s
   screen fullscreen"`. While fullscreen, a `dialog "<bot>'s screen"` holds the
@@ -233,9 +236,8 @@ Kill what you started: use `$CG down`, which uses the recorded PIDs.
 
 A run that creates a bot leaves rows in `bots`, `chats`, and `chat_members`, and a
 sidebar row in every later run. Delete what the run created with the delete recipe
-in [Bots](./features/bots.md). A group chat has no delete control anywhere in the
-app, so a group a run creates stays. Prefer an existing group for handoff drives,
-or remove the row out of band when the account should not keep it.
+in [Bots](./features/bots.md). A group the run created is deleted from its own
+header: open the `Edit group chat` dialog and confirm `Delete <name>?`.
 
 ## Helpers
 

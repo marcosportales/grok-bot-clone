@@ -162,8 +162,9 @@ required state, commands, and observable proof.
 - [Chat page](./chat-page.md) covers `/chats/<id>`, its header, the button that
   edits the chat's bot, the share placeholder, the message thread, the composer,
   and the missing-chat page.
-- [Group chat](./group-chat.md) covers the `New group chat` dialog, the group's
-  header and picker, and the handoff between members.
+- [Group chat](./group-chat.md) covers the `New group chat` dialog, the header
+  button and the `Edit group chat` dialog it opens, the picker, the handoff between
+  members, and deleting a group.
 - [Dark mode toggle](./theme-toggle.md) covers the `d` hotkey, system-preference
   following, and persistence across reloads.
 - [Auth](./auth.md) covers the gate, the `/sign-in` and `/sign-up` routes, and the

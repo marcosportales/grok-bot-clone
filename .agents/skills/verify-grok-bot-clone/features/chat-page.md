@@ -16,7 +16,9 @@ group chat shares this route and adds a picker, so its own behavior is in
 - `chat-gate` signed out, a request for `/chats/<id>` redirects to the sign-in
   route with a `redirect_url` back to the chat.
 - `chat-header` the page shows a header that names the chat and holds its controls.
-- `chat-edit` the title button opens the `Edit bot` dialog for that chat's bot.
+- `chat-edit` the title button opens the `Edit bot` dialog for that chat's bot. On
+  a group chat the same button opens `Edit group chat`
+  ([Group chat](./group-chat.md)).
 - `chat-thread` the body shows the conversation's messages, and `Send a message`
   while the conversation is empty.
 - `chat-composer` the composer holds the `What would you like to know?` textbox and
@@ -42,7 +44,7 @@ group chat shares this route and adds a picker, so its own behavior is in
 
 - Choose a chat row in the sidebar list, or a result in the search palette.
 - Type the chat URL into a browser.
-- Choose the chat's name in its header to edit the bot.
+- Choose the chat's name in its header to edit the bot, or to edit a group chat.
 
 ## Driving it with control-grok
 
@@ -64,10 +66,12 @@ Preconditions:
   `$CG snapshot "$ART/chat-page.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
   The tree holds a `sectionheader` with `heading "<title>" level=1` around
   `button "<title>"`, and beside it `button "Toggle Desktop"` carrying
-  `expanded=false`. `<title>` is the bot's name for a direct chat.
+  `expanded=false`. `<title>` is the bot's name for a direct chat and the group's
+  name for a group.
 - **Edit the bot.** Run `$CG click --role button --name "<title>"`, then
   `$CG eval "!!document.querySelector('#edit-bot-form')"`. It prints `true`, and a
-  `dialog "Edit bot"` holds the bot's own answers.
+  `dialog "Edit bot"` holds the bot's own answers. A group's title opens
+  `dialog "Edit group chat"` and `#edit-group-chat-form` instead.
 - **Send a message.** Open a chat that has no messages and run
   `$CG eval "document.querySelector('h3')?.innerText"`. It prints
   `"Send a message"`. Run

@@ -1,28 +1,35 @@
-import { ChatFaceAvatar } from "@/components/chat-avatar"
 import { DesktopPanelToggle } from "@/components/desktop-panel"
 import { EditBotButton } from "@/components/edit-bot-button"
-import type { EditableBot } from "@/lib/bot"
+import { EditGroupChatButton } from "@/components/edit-group-chat-button"
+import type { BotOption, EditableBot } from "@/lib/bot"
 import type { ChatFace } from "@/lib/chat"
+import type { UpdateGroupChat } from "@/lib/db/schema"
+
+type ChatHeaderEdit =
+  | { kind: "direct"; bot: EditableBot }
+  | { kind: "group"; chat: UpdateGroupChat; bots: BotOption[] }
 
 function ChatHeader({
   title,
   face,
-  bot,
+  edit,
 }: {
   title: string
   face: ChatFace
-  bot?: EditableBot
+  edit: ChatHeaderEdit
 }) {
   return (
     <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-2">
       <h1 className="flex min-w-0 items-center">
-        {bot ? (
-          <EditBotButton title={title} bot={bot} />
+        {edit.kind === "direct" ? (
+          <EditBotButton title={title} bot={edit.bot} />
         ) : (
-          <span className="flex min-w-0 items-center gap-2 px-1.5 text-sm font-semibold">
-            <ChatFaceAvatar face={face} className="size-5" />
-            <span className="truncate">{title}</span>
-          </span>
+          <EditGroupChatButton
+            title={title}
+            face={face}
+            bots={edit.bots}
+            chat={edit.chat}
+          />
         )}
       </h1>
       <DesktopPanelToggle />
@@ -31,3 +38,4 @@ function ChatHeader({
 }
 
 export { ChatHeader }
+export type { ChatHeaderEdit }
