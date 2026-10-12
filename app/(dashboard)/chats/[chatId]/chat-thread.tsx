@@ -7,6 +7,7 @@ import {
   useTriggerChatTransport,
 } from "@trigger.dev/sdk/chat/react"
 import type { UIMessage } from "ai"
+import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 
 import {
@@ -141,8 +142,25 @@ function ChatThreadMessages({
   })
   const { sendAction } = useChatActions({ sendMessage })
   const { showRefusal } = useRefusalToast()
+  const router = useRouter()
 
   const followed = useRef(new Set<string>())
+  const wasBusy = useRef(false)
+
+  // The sidebar's order, age, and preview come from the server layout, and the
+  // turn writes them from the worker, which cannot revalidate the way a Server
+  // Action does. Refreshing when the turn ends is what moves the row.
+  useEffect(() => {
+    if (status === "submitted" || status === "streaming") {
+      wasBusy.current = true
+      return
+    }
+
+    if (wasBusy.current) {
+      wasBusy.current = false
+      router.refresh()
+    }
+  }, [router, status])
 
   useEffect(() => {
     if (status !== "ready" || error != null) {
