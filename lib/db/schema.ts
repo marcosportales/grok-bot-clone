@@ -154,3 +154,9 @@ export const insertGroupChatSchema = createInsertSchema(chats)
   })
 
 export type InsertGroupChat = z.infer<typeof insertGroupChatSchema>
+
+export const updateGroupChatSchema = insertGroupChatSchema.extend({
+  id: z.string().min(1, "That group chat no longer exists."),
+})
+
+export type UpdateGroupChat = z.infer<typeof updateGroupChatSchema>

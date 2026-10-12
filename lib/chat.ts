@@ -2,6 +2,7 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai"
 import { differenceInSeconds, formatDistanceToNowStrict } from "date-fns"
 import { z } from "zod"
 
+import type { UpdateGroupChat } from "@/lib/db/schema"
 import type { ChatWithBots } from "@/queries/chat"
 
 const botMessageMetadataSchema = z.object({ botId: z.string().min(1) })
@@ -107,5 +108,13 @@ export function toChatSummary(chat: ChatWithBots): ChatSummaryData {
     title: chatTitle(chat),
     age: chatAge(chat.lastMessageAt),
     preview: chatPreview(chat),
+  }
+}
+
+export function toEditableGroupChat(chat: ChatWithBots): UpdateGroupChat {
+  return {
+    id: chat.id,
+    name: chat.name ?? "",
+    botIds: chat.bots.map((bot) => bot.id),
   }
 }
