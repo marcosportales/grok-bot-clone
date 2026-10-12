@@ -13,6 +13,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Never create branches, worktrees, or commits automatically. Only do so when the user explicitly asks for that specific action in the current request.
 - Leave changes uncommited in the working tree on the current branch and let the user decide when and how to commit.
 
+## Issues
+
+File a defect or a gap you notice outside your current task as its own issue in Linear, in the MAR team's Grok Bot Clone project. Note the file and line, and leave the fix out of the change you are making.
+
 ## DiceBear
 
 Use DiceBear 10. Documentation: <https://www.dicebear.com/llms.txt>
