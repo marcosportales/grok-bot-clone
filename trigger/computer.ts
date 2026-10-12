@@ -289,11 +289,14 @@ export function computerTools(chatId: string) {
         "Run a shell command in the sandbox and return its exit code and output.",
       inputSchema: z.object({
         command: z.string().min(1).max(8_000),
-        cwd: z.string().min(1).max(500).optional(),
+        // The model reaches for "" when it has no directory in mind, and the
+        // provider refuses the whole call when the schema rejects it, so the
+        // field takes an empty string and the code below reads it as absent.
+        cwd: z.string().max(500).optional(),
       }),
       execute: async ({ command, cwd }, { abortSignal }) =>
         withSandbox(sandboxId, abortSignal, async (sandbox) => {
-          const cwdPath = cwd == null ? undefined : pathOf(cwd)
+          const cwdPath = cwd ? pathOf(cwd) : undefined
           if (cwdPath && typeof cwdPath !== "string") {
             return cwdPath
           }
