@@ -1,4 +1,4 @@
-import type { UIMessage } from "ai"
+import { getToolName, isToolUIPart, type UIMessage } from "ai"
 import { differenceInSeconds, formatDistanceToNowStrict } from "date-fns"
 import { z } from "zod"
 
@@ -20,6 +20,77 @@ export function botIdFromMessage(message: UIMessage): string | undefined {
   const parsed = botMessageMetadataSchema.safeParse(message.metadata)
 
   return parsed.success ? parsed.data.botId : undefined
+}
+
+// What the thread needs off a handoff result to follow it: the member the
+// request was given to, and the name the card draws. The rest of the result is
+// the model's, and the card reads it off the part directly.
+const handoffOutputSchema = z.object({
+  botId: z.string().min(1),
+  name: z.string().min(1),
+})
+
+export type Handoff = z.infer<typeof handoffOutputSchema> & {
+  toolCallId: string
+}
+
+/**
+ * The handoff a message holds, or undefined when it holds none. The call id is
+ * carried back with it so the thread can tell a handoff it has already
+ * followed from the same one arriving again.
+ *
+ * A tool's result comes back from the transcript as `unknown`, so it is parsed
+ * here rather than asserted.
+ */
+export function handoffFromMessage(message: UIMessage): Handoff | undefined {
+  for (const part of message.parts) {
+    if (!isToolUIPart(part) || getToolName(part) !== "handoff") {
+      continue
+    }
+
+    if (part.state !== "output-available") {
+      continue
+    }
+
+    const parsed = handoffOutputSchema.safeParse(part.output)
+
+    if (parsed.success) {
+      return { toolCallId: part.toolCallId, ...parsed.data }
+    }
+  }
+
+  return undefined
+}
+
+/**
+ * The bots that have answered since the user's last message, oldest first.
+ *
+ * A group hands one request along this chain, and a handoff back to a member
+ * already on it is refused. That is what stops two bots handing the same
+ * request to each other for as long as the user says nothing new.
+ */
+export function answeredSinceUser(messages: UIMessage[]): string[] {
+  const answered: string[] = []
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index]
+
+    if (message.role === "user") {
+      break
+    }
+
+    if (message.role !== "assistant") {
+      continue
+    }
+
+    const botId = botIdFromMessage(message)
+
+    if (botId) {
+      answered.unshift(botId)
+    }
+  }
+
+  return answered
 }
 
 // A face is one seed for a direct chat and one seed per member for a group, so

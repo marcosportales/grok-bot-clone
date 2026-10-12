@@ -99,7 +99,10 @@ async function sandboxIdForChat(chatId: string): Promise<string> {
     .from(chatMembers)
     .innerJoin(bots, eq(chatMembers.botId, bots.id))
     .where(eq(chatMembers.chatId, chatId))
-    .orderBy(asc(chatMembers.joinedAt))
+    // `id` breaks the tie a group's single multi-row insert leaves in
+    // `joinedAt`, so this picks the member the prompt and the chunk below call
+    // the first one.
+    .orderBy(asc(chatMembers.joinedAt), asc(bots.id))
     .limit(1)
 
   if (!member?.sandboxId) {
@@ -141,8 +144,12 @@ async function openDesktop(sandbox: Sandbox): Promise<void> {
   desktopReady.add(sandbox.id)
 }
 
+// The sandbox id arrives as a thunk rather than a promise, and that is what
+// keeps a chat whose first member has no sandbox from killing the run: the
+// lookup used to happen once per turn, so a missing sandbox left a rejected
+// promise nobody awaited, which Node ends the process over.
 async function withSandbox<T>(
-  sandboxId: Promise<string>,
+  sandboxId: () => Promise<string>,
   signal: AbortSignal | undefined,
   run: (sandbox: Sandbox) => Promise<T>
 ): Promise<T | Failure> {
@@ -152,7 +159,7 @@ async function withSandbox<T>(
   }
 
   try {
-    const sandbox = await openSandbox(await sandboxId)
+    const sandbox = await openSandbox(await sandboxId())
     return await run(sandbox)
   } catch (error) {
     return failed(error)
@@ -160,7 +167,7 @@ async function withSandbox<T>(
 }
 
 async function withDesktop<T>(
-  sandboxId: Promise<string>,
+  sandboxId: () => Promise<string>,
   signal: AbortSignal | undefined,
   run: (sandbox: Sandbox) => Promise<T>
 ): Promise<T | Failure> {
@@ -274,7 +281,7 @@ async function takePicture(sandbox: Sandbox): Promise<ScreenPicture> {
 }
 
 export function computerTools(chatId: string) {
-  const sandboxId = sandboxIdForChat(chatId)
+  const sandboxId = () => sandboxIdForChat(chatId)
 
   return {
     bash: tool({

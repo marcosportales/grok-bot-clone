@@ -2,11 +2,12 @@
 
 import { useChat } from "@ai-sdk/react"
 import {
+  useChatActions,
   useLoadTranscript,
   useTriggerChatTransport,
 } from "@trigger.dev/sdk/chat/react"
 import { getToolName, isToolUIPart, type UIMessage } from "ai"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import {
   loadChatTranscript,
@@ -40,7 +41,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { ChatAvatar } from "@/components/chat-avatar"
 import type { BotOption } from "@/lib/bot"
-import { botIdFromMessage } from "@/lib/chat"
+import {
+  answeredSinceUser,
+  botIdFromMessage,
+  handoffFromMessage,
+} from "@/lib/chat"
 import type { chatAgent } from "@/trigger/chat"
 
 import { ChatToolPart } from "./chat-tool"
@@ -116,6 +121,45 @@ function ChatThreadMessages({
     transport,
     resume: initialMessages.length > 0,
   })
+  const { sendAction } = useChatActions({ sendMessage })
+
+  // The handoffs this thread has answered already. Following one means
+  // switching the member that answers and asking the agent for the turn, and
+  // the call id is what keeps a re-render, a reload, or a Strict Mode double
+  // run from asking for that turn twice.
+  const followed = useRef(new Set<string>())
+
+  useEffect(() => {
+    // The handoff only means anything once the turn that called it is over.
+    if (status !== "ready" || error != null) {
+      return
+    }
+
+    const last = messages[messages.length - 1]
+    if (last?.role !== "assistant") {
+      return
+    }
+
+    const handoff = handoffFromMessage(last)
+    if (!handoff || followed.current.has(handoff.toolCallId)) {
+      return
+    }
+
+    followed.current.add(handoff.toolCallId)
+    setBotId(handoff.botId)
+
+    // A handoff to a member who already answered this request would start the
+    // same exchange over, so the picker moves to them and the user decides
+    // whether to send again.
+    if (answeredSinceUser(messages).includes(handoff.botId)) {
+      return
+    }
+
+    // The turn the action asks for reads the member back off the transport, so
+    // this is what makes the member named in the handoff the one who answers.
+    transport.setClientData({ botId: handoff.botId })
+    void sendAction({ type: "handoff" })
+  }, [error, messages, sendAction, setBotId, status, transport])
 
   // The select lists the ids, and the trigger draws the face and the name of
   // the bot the current id names.

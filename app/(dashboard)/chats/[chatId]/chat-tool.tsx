@@ -406,6 +406,23 @@ function ShowScreenTool({ part }: { part: ToolPart }) {
   )
 }
 
+function HandoffTool({ part }: { part: ToolPart }) {
+  const name = stringField(part.output, "name")
+  const reason = stringField(part.output, "reason")
+
+  return (
+    <ToolFrame
+      defaultOpen
+      part={part}
+      title={name ? `Handed off to ${name}` : "Handoff"}
+    >
+      {reason ? (
+        <p className="text-sm text-muted-foreground">{reason}</p>
+      ) : null}
+    </ToolFrame>
+  )
+}
+
 function GenericTool({ part }: { part: ToolPart }) {
   const name = getToolName(part)
 
@@ -461,6 +478,8 @@ function ChatToolPart({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
       return <KeyboardTypeTool part={part} />
     case "keyboardPress":
       return <KeyboardPressTool part={part} />
+    case "handoff":
+      return <HandoffTool part={part} />
     case "showScreen":
       return <ShowScreenTool part={part} />
     default:
