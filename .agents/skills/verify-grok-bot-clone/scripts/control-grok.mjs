@@ -564,10 +564,13 @@ async function cmdSignIn() {
   }
   if (!userId) {
     const path = await withPage((cdp) => currentPath(cdp))()
-    fail(
-      `still signed out after the password step (path ${path}).\n` +
-        "A `/sign-in/client-trust` path means the test account needs `bypass_client_trust`."
-    )
+    const hint = path.includes("client-trust")
+      ? "That path means the test account needs `bypass_client_trust`."
+      : path.includes("factor-one")
+        ? "That path is Clerk's password-retry page, so GROK_VERIFY_PASSWORD is wrong or unknown.\n" +
+          "Rotate it on the dev instance, per the Signing in section of this skill's feature map."
+        : "Check GROK_VERIFY_EMAIL, and whether the account needs another factor."
+    fail(`still signed out after the password step (path ${path}).\n${hint}`)
   }
   log(`signed in as ${userId}`)
 }
