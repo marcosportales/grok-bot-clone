@@ -3,10 +3,11 @@
 The dashboard shell. Signed in, every page under the root layout renders inside
 it, so the rail and its controls sit beside the root page and beside a chat. The
 rail collapses to a 3rem icon strip and remembers the choice, its `New` button
-opens a menu that starts the bot dialog, its `Search` field and the `⌘K` chord
-open a palette over the current chat, its list shows one row per chat with the
-open one marked, and its footer holds the Clerk account control. The bot dialog
-it starts is [Bot dialog](./bots.md), and opening a row lands on
+opens a menu that starts the bot dialog and the group chat dialog, its `Search`
+field and the `⌘K` chord open a palette over the current chat, its list shows one
+row per chat with the open one marked, and its footer holds the Clerk account
+control. The dialogs it starts are [Bot dialog](./bots.md) and
+[Group chat](./group-chat.md), and opening a row lands on
 [Chat page](./chat-page.md).
 
 ## Sub-features
@@ -18,13 +19,13 @@ it starts is [Bot dialog](./bots.md), and opening a row lands on
 - `sidebar-new-menu` `New` opens a menu holding `Create new bot` and
   `Create group chat`.
 - `sidebar-new-bot` `Create new bot` opens the `New bot` dialog.
-- `sidebar-new-inert` `Create group chat` closes the menu and changes nothing else.
+- `sidebar-new-group` `Create group chat` opens the `New group chat` dialog.
 - `sidebar-search` `Search` opens the `Search chats` palette.
 - `sidebar-search-shortcut` the `meta+k` or `ctrl+k` chord opens and closes the
   palette.
 - `sidebar-search-filter` typing narrows the results to matching chats.
 - `sidebar-search-open` choosing a result opens that chat and closes the palette.
-- `sidebar-chat-list` one row per chat, showing the bot's face, name, age, and job.
+- `sidebar-chat-list` one row per chat, showing its face, name, age, and preview.
 - `sidebar-active-chat` the open chat's row carries `aria-current="page"`.
 - `sidebar-empty` an account with no chats shows an empty list and no empty-state
   copy.
@@ -73,11 +74,11 @@ Preconditions:
   `$CG click --role menuitem --name "Create new bot"`, then
   `$CG eval "!!document.querySelector('#new-bot-form')"`. It prints `true` and a
   `dialog "New bot"` is open. Close it with `$CG press Escape`.
-- **Group chat is inert.** Run `$CG click --role button --name "New"`, then
+- **Start the group dialog.** Run `$CG click --role button --name "New"`, then
   `$CG click --role menuitem --name "Create group chat"`, then
-  `$CG eval "({path: location.pathname, menus: document.querySelectorAll('[role=menu]').length, forms: document.querySelectorAll('form').length})"`.
-  Nothing changed: the path is still `/`, no menu is open, and no form appeared. No
-  request is sent. This control does nothing yet; see Gotchas.
+  `$CG eval "!!document.querySelector('#new-group-chat-form')"`. It prints `true`,
+  and a `dialog "New group chat"` is open. Its fields are in
+  [Group chat](./group-chat.md). Close it with `$CG press Escape`.
 - **Search opens.** Run `$CG click --role button --name "Search"`, then
   `$CG eval "!!document.querySelector('[data-slot=dialog-content]')"`. It prints
   `true`. A snapshot shows `dialog "Search chats"` holding an unnamed `combobox`
@@ -144,8 +145,8 @@ Preconditions:
 - `sidebar_state` is a cookie, not `localStorage`. `down` and a fresh `up` start a
   new Chrome profile with the rail expanded, so clear or set the cookie when a
   recipe needs baseline state.
-- `Create group chat` is a live menu item that does nothing. It closes the menu and
-  sends nothing. Reported as a product gap.
+- `Create group chat` opens `New group chat`, which needs a name and at least two
+  bots. See [Group chat](./group-chat.md).
 - A brand-new account has no chats. The list then renders no rows and no
   empty-state message, and the palette shows `No chats found.`. Create a bot first
   for every recipe that needs a row, or sign in as a second account that owns no

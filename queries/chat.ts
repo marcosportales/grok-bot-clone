@@ -30,7 +30,10 @@ export async function getChatsWithBots(): Promise<ChatWithBots[]> {
     orderBy: [desc(chats.lastMessageAt)],
     with: {
       chatMembers: {
-        orderBy: [asc(chatMembers.joinedAt)],
+        // `botId` breaks the tie a group's single multi-row insert leaves in
+        // `joinedAt`, so the first member here is the first member the
+        // trigger's own tools and prompt reach for.
+        orderBy: [asc(chatMembers.joinedAt), asc(chatMembers.botId)],
         with: { bot: true },
       },
     },
@@ -63,7 +66,9 @@ export async function getChatWithBots(
     where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
     with: {
       chatMembers: {
-        orderBy: [asc(chatMembers.joinedAt)],
+        // The same order as the list above, and the same one the trigger's
+        // tools use to pick the chat's computer.
+        orderBy: [asc(chatMembers.joinedAt), asc(chatMembers.botId)],
         with: { bot: true },
       },
     },

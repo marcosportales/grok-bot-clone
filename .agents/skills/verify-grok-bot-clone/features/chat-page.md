@@ -4,8 +4,10 @@ A chat lives at `/chats/<id>` inside the dashboard shell. The page is behind
 Clerk, and the id is matched against the signed-in user, so an id you do not own
 reads as missing rather than as somebody else's chat. Signed in, the page shows a
 header that names the chat and holds the two controls for it: the title itself,
-which opens the bot's edit dialog, and the desktop toggle. The conversation body
-is still empty, because nothing sends a message yet. The dialog the title opens is
+which opens the bot's edit dialog, and the desktop toggle. Under the header the
+conversation holds the messages, and a composer at the bottom sends a new one. A
+group chat shares this route and adds a picker, so its own behavior is in
+[Group chat](./group-chat.md). The dialog the title opens is
 [Bot dialog](./bots.md), and the list the id comes from is
 [Sidebar](./sidebar.md).
 
@@ -15,6 +17,13 @@ is still empty, because nothing sends a message yet. The dialog the title opens 
   route with a `redirect_url` back to the chat.
 - `chat-header` the page shows a header that names the chat and holds its controls.
 - `chat-edit` the title button opens the `Edit bot` dialog for that chat's bot.
+- `chat-thread` the body shows the conversation's messages, and `Send a message`
+  while the conversation is empty.
+- `chat-composer` the composer holds the `What would you like to know?` textbox and
+  the `Submit` button.
+- `chat-send` submitting the composer appends the message to the thread, and the
+  bot's answer arrives as a second message.
+- `chat-streaming` the composer's button reads `Stop` while an answer streams.
 - `chat-desktop` the `Toggle Desktop` button opens the desktop panel beside the
   conversation. The panel holds the live screen of the chat's computer, previews
   it, and opens it fullscreen when the preview is clicked.
@@ -59,6 +68,18 @@ Preconditions:
 - **Edit the bot.** Run `$CG click --role button --name "<title>"`, then
   `$CG eval "!!document.querySelector('#edit-bot-form')"`. It prints `true`, and a
   `dialog "Edit bot"` holds the bot's own answers.
+- **Send a message.** Open a chat that has no messages and run
+  `$CG eval "document.querySelector('h3')?.innerText"`. It prints
+  `"Send a message"`. Run
+  `$CG click --role textbox --name "What would you like to know?"`, then
+  `$CG type "Say hello in one word."`, then
+  `$CG click --role button --name "Submit"`. The button's accessible name is `Stop`
+  while the answer streams and `Submit` again once it ends. Read the thread with
+  `$CG eval "document.querySelector('[role=log]').innerText"`. It holds your line
+  and the bot's answer, one after the other.
+- **Read the thread.** The message text never appears in an ARIA snapshot, because
+  a message body is an unnamed `paragraph` and the snapshot drops those. Use
+  `$CG text` or the `innerText` read above for the words.
 - **Toggle the desktop panel.** Run `$CG click --role button --name "Toggle Desktop"`,
   then
   `$CG eval "[...document.querySelectorAll('[data-panel]')].map((p) => p.id + ':' + Math.round(p.getBoundingClientRect().width))"`,
@@ -126,8 +147,15 @@ Preconditions:
   carries that name. On this page it is the only one.
 - The closed search palette leaves a `heading "Search chats"` in the tree here too.
   See [Sidebar](./sidebar.md#gotchas).
-- The page stops after the header. There is no message list and no composer, so a
-  recipe that looks for a conversation finds none.
+- The transcript loads after the first paint, so the thread is briefly empty even
+  on a chat with history. Wait for a message before asserting on one.
+- `snapshot` drops unnamed `paragraph` nodes, and a message body is one. Pair every
+  assertion about what a message says with `$CG text` or an `innerText` read of
+  `[role=log]`.
+- The composer's textbox has no label. Its accessible name is the placeholder
+  `What would you like to know?`.
+- The submit button is `Submit` at rest and `Stop` while a turn streams, so a
+  recipe that clicks `Submit` mid-turn finds no such button.
 - `control-grok`'s `press` accepts one letter, one digit, `d`, `Tab`, `Enter`,
   `Escape`, space, or a modifier chord, so it cannot send the arrow keys, `Home`,
   `End`, or `F6` that resize a separator. Until it can, drive a resize by

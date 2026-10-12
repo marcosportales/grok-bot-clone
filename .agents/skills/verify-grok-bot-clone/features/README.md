@@ -8,13 +8,14 @@ At the current commit the app has four page routes and one endpoint: the root
 page, the chat page at `/chats/<id>`, the `/sign-in` and `/sign-up` routes, and
 the `/api/health` endpoint. The root page and the chat page both sit behind Clerk
 and both render inside the dashboard shell, which is the sidebar. A signed-out
-visitor to either one lands on `/sign-in` and never sees the shell. Seven
+visitor to either one lands on `/sign-in` and never sees the shell. Eight
 behaviors are mapped: the root page, the sidebar shell, the bot dialog, the chat
-page, the dark-mode toggle, the Clerk auth surface, and the health endpoint.
-Browser-side persistence is `localStorage["theme"]` and the `sidebar_state`
-cookie; the other durable state is the `bots`, `chats`, and `chat_members` tables
-that the bot dialog writes. The map covers everything a user can touch today. Add
-a feature file whenever a new route, control, or command appears.
+page, the group chat and its handoff, the dark-mode toggle, the Clerk auth
+surface, and the health endpoint. Browser-side persistence is
+`localStorage["theme"]` and the `sidebar_state` cookie; the other durable state
+is the `bots`, `chats`, and `chat_members` tables that the bot dialog and the
+group dialog write. The map covers everything a user can touch today. Add a
+feature file whenever a new route, control, or command appears.
 
 ## Baseline preconditions
 
@@ -132,7 +133,10 @@ required state, commands, and observable proof.
 - [Bot dialog](./bots.md) covers the dialog in create, edit, and delete mode, and
   the `bots`, `chats`, and `chat_members` rows each mode changes.
 - [Chat page](./chat-page.md) covers `/chats/<id>`, its header, the button that
-  edits the chat's bot, the share placeholder, and the missing-chat page.
+  edits the chat's bot, the share placeholder, the message thread, the composer,
+  and the missing-chat page.
+- [Group chat](./group-chat.md) covers the `New group chat` dialog, the group's
+  header and picker, and the handoff between members.
 - [Dark mode toggle](./theme-toggle.md) covers the `d` hotkey, system-preference
   following, and persistence across reloads.
 - [Auth](./auth.md) covers the gate, the `/sign-in` and `/sign-up` routes, and the
