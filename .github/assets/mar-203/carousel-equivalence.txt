@@ -1,0 +1,17 @@
+== new (useSyncExternalStore)
+initial   "{\"prev\":true,\"next\":false,\"slide\":-1}"
+next x1   "{\"prev\":false,\"next\":false,\"slide\":-1}"
+next x2   "{\"prev\":false,\"next\":false,\"slide\":-1}"
+next x3   "{\"prev\":false,\"next\":true,\"slide\":-1}"
+prev x1   "{\"prev\":false,\"next\":false,\"slide\":3}"
+
+== old (HEAD, mirrored state)
+initial   "{\"prev\":true,\"next\":false,\"slide\":-1}"
+next x1   "{\"prev\":false,\"next\":false,\"slide\":-1}"
+next x2   "{\"prev\":false,\"next\":false,\"slide\":-1}"
+next x3   "{\"prev\":false,\"next\":true,\"slide\":-1}"
+prev x1   "{\"prev\":false,\"next\":false,\"slide\":3}"
+
+restored new
+ components/ui/carousel.tsx | 49 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 30 insertions(+), 19 deletions(-)

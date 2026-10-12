@@ -1,0 +1,37 @@
+$ tsc --noEmit
+components/ai-elements/agent.tsx(106,11): error TS2322: Type 'string | ((options: { context: any; experimental_sandbox?: SandboxSession | undefined; }) => string)' is not assignable to type 'ReactNode'.
+  Type '(options: { context: any; experimental_sandbox?: SandboxSession | undefined; }) => string' is not assignable to type 'ReactNode'.
+components/ai-elements/attachments.tsx(345,3): error TS2339: Property 'openDelay' does not exist on type 'Props<unknown>'.
+components/ai-elements/attachments.tsx(346,3): error TS2339: Property 'closeDelay' does not exist on type 'Props<unknown>'.
+components/ai-elements/attachments.tsx(349,14): error TS2322: Type '{ defaultOpen?: boolean | undefined; open?: boolean | undefined; onOpenChange?: ((open: boolean, eventDetails: PreviewCardRootChangeEventDetails) => void) | undefined; ... 7 more ...; openDelay: any; }' is not assignable to type 'IntrinsicAttributes & Props<unknown>'.
+  Property 'closeDelay' does not exist on type 'IntrinsicAttributes & Props<unknown>'.
+components/ai-elements/context.tsx(59,18): error TS2322: Type '{ defaultOpen?: boolean | undefined; open?: boolean | undefined; onOpenChange?: ((open: boolean, eventDetails: PreviewCardRootChangeEventDetails) => void) | undefined; ... 7 more ...; openDelay: number; }' is not assignable to type 'IntrinsicAttributes & Props<unknown>'.
+  Property 'closeDelay' does not exist on type 'IntrinsicAttributes & Props<unknown>'.
+components/ai-elements/context.tsx(339,34): error TS2339: Property 'reasoningTokens' does not exist on type 'LanguageModelUsage'.
+components/ai-elements/context.tsx(379,30): error TS2339: Property 'cachedInputTokens' does not exist on type 'LanguageModelUsage'.
+components/ai-elements/inline-citation.tsx(53,14): error TS2322: Type '{ defaultOpen?: boolean | undefined; open?: boolean | undefined; onOpenChange?: ((open: boolean, eventDetails: PreviewCardRootChangeEventDetails) => void) | undefined; ... 7 more ...; openDelay: number; }' is not assignable to type 'IntrinsicAttributes & Props<unknown>'.
+  Property 'closeDelay' does not exist on type 'IntrinsicAttributes & Props<unknown>'.
+components/ai-elements/plan.tsx(131,32): error TS2322: Type '{ nativeButton?: boolean | undefined; key?: Key | null | undefined; role?: AriaRole | undefined; title?: string | undefined; id?: string | undefined; name?: string | undefined; ... 286 more ...; variant: "ghost"; }' is not assignable to type 'ButtonProps'.
+  Types of property 'render' are incompatible.
+    Type 'ReactElement<unknown, string | JSXElementConstructor<any>> | ComponentRenderFn<HTMLProps, CollapsibleTriggerState> | undefined' is not assignable to type 'ReactElement<unknown, string | JSXElementConstructor<any>> | ComponentRenderFn<HTMLProps, ButtonState> | undefined'.
+      Type 'ComponentRenderFn<HTMLProps, CollapsibleTriggerState>' is not assignable to type 'ReactElement<unknown, string | JSXElementConstructor<any>> | ComponentRenderFn<HTMLProps, ButtonState> | undefined'.
+        Type 'ComponentRenderFn<HTMLProps, CollapsibleTriggerState>' is not assignable to type 'ComponentRenderFn<HTMLProps, ButtonState>'.
+          Type 'ButtonState' is missing the following properties from type 'Pick<UseCollapsibleRootReturnValue, "open" | "disabled" | "transitionStatus">': open, transitionStatus
+components/ai-elements/prompt-input.tsx(402,34): error TS2322: Type '(e: Event) => void' is not assignable to type '(event: BaseUIEvent<SyntheticEvent<HTMLDivElement, Event>>) => void'.
+  Types of parameters 'e' and 'event' are incompatible.
+    Type 'SyntheticEvent<HTMLDivElement, Event> & { preventBaseUIHandler: () => void; readonly baseUIHandlerPrevented?: boolean | undefined; }' is missing the following properties from type 'Event': cancelBubble, composed, returnValue, srcElement, and 7 more.
+components/ai-elements/prompt-input.tsx(423,18): error TS2345: Argument of type 'Event' is not assignable to parameter of type 'BaseUIEvent<SyntheticEvent<HTMLDivElement, Event>>'.
+  Type 'Event' is missing the following properties from type 'SyntheticEvent<HTMLDivElement, Event>': nativeEvent, isDefaultPrevented, isPropagationStopped, persist
+components/ai-elements/prompt-input.tsx(447,34): error TS2322: Type '(event: Event) => Promise<void>' is not assignable to type '(event: BaseUIEvent<SyntheticEvent<HTMLDivElement, Event>>) => void'.
+  Types of parameters 'event' and 'event' are incompatible.
+    Type 'SyntheticEvent<HTMLDivElement, Event> & { preventBaseUIHandler: () => void; readonly baseUIHandlerPrevented?: boolean | undefined; }' is missing the following properties from type 'Event': cancelBubble, composed, returnValue, srcElement, and 7 more.
+components/ai-elements/prompt-input.tsx(1177,17): error TS2345: Argument of type 'MouseEvent<HTMLButtonElement, MouseEvent>' is not assignable to parameter of type 'BaseUIEvent<MouseEvent<HTMLButtonElement, MouseEvent>>'.
+  Property 'preventBaseUIHandler' is missing in type 'MouseEvent<HTMLButtonElement, MouseEvent>' but required in type '{ preventBaseUIHandler: () => void; readonly baseUIHandlerPrevented?: boolean | undefined; }'.
+components/ai-elements/prompt-input.tsx(1253,3): error TS2339: Property 'openDelay' does not exist on type 'Props<unknown>'.
+components/ai-elements/prompt-input.tsx(1254,3): error TS2339: Property 'closeDelay' does not exist on type 'Props<unknown>'.
+components/ai-elements/prompt-input.tsx(1257,14): error TS2322: Type '{ defaultOpen?: boolean | undefined; open?: boolean | undefined; onOpenChange?: ((open: boolean, eventDetails: PreviewCardRootChangeEventDetails) => void) | undefined; ... 7 more ...; openDelay: any; }' is not assignable to type 'IntrinsicAttributes & Props<unknown>'.
+  Property 'closeDelay' does not exist on type 'IntrinsicAttributes & Props<unknown>'.
+components/ai-elements/voice-selector.tsx(83,5): error TS2322: Type '((open: boolean, eventDetails: DialogRootChangeEventDetails) => void) | undefined' is not assignable to type 'ChangeHandler$1<boolean> | undefined'.
+  Type '(open: boolean, eventDetails: DialogRootChangeEventDetails) => void' is not assignable to type 'ChangeHandler$1<boolean>'.
+    Target signature provides too few arguments. Expected 2 or more, but got 1.
+[ELIFECYCLE] Command failed with exit code 2.
