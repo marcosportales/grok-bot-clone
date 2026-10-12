@@ -13,6 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Spinner } from "@/components/ui/spinner"
+import { useRefusalToast } from "@/components/refusal-toast"
 
 type ScreenState =
   | { status: "idle" }
@@ -47,6 +48,7 @@ function SandboxScreen({
   const [screen, setScreen] = useState<ScreenState>({ status: "idle" })
   const [fullscreen, setFullscreen] = useState(false)
   const [dialogHost, setDialogHost] = useState<HTMLDivElement | null>(null)
+  const { showRefusal } = useRefusalToast()
   const inlineHost = useRef<HTMLDivElement>(null)
   const frameRef = useRef<HTMLIFrameElement | null>(null)
   const asked = useRef(false)
@@ -57,12 +59,16 @@ function SandboxScreen({
   const request = useCallback(async () => {
     const result = await getChatScreen(chatId)
 
+    if (!result.ok && "upgrade" in result) {
+      showRefusal(result)
+    }
+
     setScreen(
       result.ok
         ? { status: "ready", url: result.url, refreshing: false }
         : { status: "failed", error: result.error }
     )
-  }, [chatId])
+  }, [chatId, showRefusal])
 
   useEffect(() => {
     if (!active || asked.current) {

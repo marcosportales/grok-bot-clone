@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server"
 import { and, eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
+import { missingFeature, type UpgradeRequired } from "@/lib/billing"
 import { db } from "@/lib/db"
 import {
   bots,
@@ -14,12 +15,15 @@ import {
   type InsertBot,
 } from "@/lib/db/schema"
 import { createSandbox, deleteSandbox } from "@/lib/sandbox"
+import { missingAllowance } from "@/lib/usage/quota"
 
 type BotResult =
-  { ok: true; bot: { id: string; name: string } } | { ok: false; error: string }
+  | { ok: true; bot: { id: string; name: string } }
+  | { ok: false; error: string }
+  | UpgradeRequired
 
 export async function createBot(input: InsertBot): Promise<BotResult> {
-  const { isAuthenticated, userId } = await auth()
+  const { isAuthenticated, userId, has } = await auth()
   if (!isAuthenticated) {
     return { ok: false, error: "Sign in to create a bot." }
   }
@@ -30,6 +34,17 @@ export async function createBot(input: InsertBot): Promise<BotResult> {
       ok: false,
       error: parsed.error.issues[0]?.message ?? "That bot does not look right.",
     }
+  }
+
+  const blocked = missingFeature(has, "bots")
+  if (blocked) {
+    return blocked
+  }
+
+  // A bot is a sandbox held, so this is the sandbox-creation boundary too.
+  const outOfAllowance = await missingAllowance(has, userId, "bots")
+  if (outOfAllowance) {
+    return outOfAllowance
   }
 
   const { name, avatar, job, instructions } = parsed.data

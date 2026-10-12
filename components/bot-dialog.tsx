@@ -49,6 +49,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/toast"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { useRefusalToast } from "@/components/refusal-toast"
 import type { EditableBot } from "@/lib/bot"
 import { insertBotSchema, type InsertBot } from "@/lib/db/schema"
 
@@ -93,6 +94,7 @@ function BotDialog({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const open = openProp ?? uncontrolledOpen
   const [isPending, startTransition] = useTransition()
+  const { showRefusal } = useRefusalToast()
 
   const isEdit = bot !== undefined
   const initialValues = useMemo(
@@ -140,11 +142,15 @@ function BotDialog({
         : await createBot(values)
 
       if (!result.ok) {
-        toast.add({
-          title: isEdit ? "Could not save the bot" : "Could not create bot",
-          description: result.error,
-          type: "error",
-        })
+        if ("upgrade" in result) {
+          showRefusal(result)
+        } else {
+          toast.add({
+            title: isEdit ? "Could not save the bot" : "Could not create bot",
+            description: result.error,
+            type: "error",
+          })
+        }
         return
       }
 

@@ -2,10 +2,15 @@
 
 import { auth } from "@clerk/nextjs/server"
 import { auth as triggerAuth } from "@trigger.dev/sdk"
-import { chat, defaultStorage } from "@trigger.dev/sdk/ai"
+import {
+  chat,
+  defaultStorage,
+  type ChatStartSessionResult,
+} from "@trigger.dev/sdk/ai"
 import { and, eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
+import { missingFeature, type UpgradeRequired } from "@/lib/billing"
 import { db } from "@/lib/db"
 import {
   bots,
@@ -16,17 +21,20 @@ import {
   type InsertGroupChat,
   type UpdateGroupChat,
 } from "@/lib/db/schema"
-import { getChatWithBots } from "@/queries/chat"
+import { missingAllowance } from "@/lib/usage/quota"
+import { getChatWithBots, type ChatWithBots } from "@/queries/chat"
 
 const startSession = chat.createStartSessionAction("chat")
 const loadStoredTranscript = chat.createLoadTranscriptAction(defaultStorage)
 
-async function requireOwnedChat(chatId: string) {
+async function requireOwnedChat(chatId: string): Promise<ChatWithBots> {
   const owned = await getChatWithBots(chatId)
 
   if (!owned) {
     throw new Error("Something went wrong.")
   }
+
+  return owned
 }
 
 export async function startChatSession({
@@ -35,14 +43,35 @@ export async function startChatSession({
 }: {
   chatId: string
   clientData?: { botId: string }
-}) {
-  await requireOwnedChat(chatId)
+}): Promise<ChatStartSessionResult | UpgradeRequired> {
+  const ownedChat = await requireOwnedChat(chatId)
+
+  const { has } = await auth()
+  const blocked = missingFeature(has, "bots")
+  if (blocked) {
+    return blocked
+  }
+
+  // The first send of a page session is the only clear-message path that reaches
+  // the server, so the token stop for the whole session is decided here.
+  const spent = await missingAllowance(has, ownedChat.userId, "ai_tokens")
+  if (spent) {
+    return spent
+  }
 
   return startSession({ chatId, clientData })
 }
 
-export async function mintChatAccessToken(chatId: string) {
+export async function mintChatAccessToken(
+  chatId: string
+): Promise<string | UpgradeRequired> {
   await requireOwnedChat(chatId)
+
+  const { has } = await auth()
+  const blocked = missingFeature(has, "sandboxes")
+  if (blocked) {
+    return blocked
+  }
 
   return triggerAuth.createPublicToken({
     scopes: {

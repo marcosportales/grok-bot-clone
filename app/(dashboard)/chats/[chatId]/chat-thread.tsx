@@ -35,13 +35,20 @@ import {
 } from "@/components/ai-elements/prompt-input"
 import { Button } from "@/components/ui/button"
 import { ChatAvatar } from "@/components/chat-avatar"
+import { useRefusalToast } from "@/components/refusal-toast"
+import type { UpgradeRequired } from "@/lib/billing"
 import type { BotOption } from "@/lib/bot"
 import { answeredSinceUser, handoffFromMessage } from "@/lib/chat"
 import type { chatAgent } from "@/trigger/chat"
 
 import { ChatMessage } from "./chat-message"
 
-type ChatThreadProps = { chatId: string; bots: BotOption[] }
+type ChatThreadProps = {
+  chatId: string
+  bots: BotOption[]
+  /** The refusal sending would hit right now, or null when it would not. */
+  sendBlockedRefusal: UpgradeRequired | null
+}
 
 type ChatTransport = ReturnType<
   typeof useTriggerChatTransport<typeof chatAgent>
@@ -54,15 +61,36 @@ type ChatThreadMessagesProps = {
   setBotId: (botId: string) => void
   initialMessages: UIMessage[]
   transport: ChatTransport
+  sendBlockedRefusal: UpgradeRequired | null
 }
 
-function ChatThread({ chatId, bots }: ChatThreadProps) {
+function ChatThread({ chatId, bots, sendBlockedRefusal }: ChatThreadProps) {
   const [botId, setBotId] = useState(bots[0].id)
+  const { refusalError } = useRefusalToast()
   const transport = useTriggerChatTransport<typeof chatAgent>({
     task: "chat",
-    accessToken: ({ chatId }) => mintChatAccessToken(chatId),
-    startSession: ({ chatId, clientData }) =>
-      startChatSession({ chatId, clientData }),
+    accessToken: async ({ chatId }) => {
+      const token = await mintChatAccessToken(chatId)
+
+      // A string is a token and anything else is a refusal, so this narrows the
+      // union on the primitive side. The `in` operator cannot be used here
+      // because one member is a string. The session callback below can, because
+      // both of its members are objects.
+      if (typeof token !== "string") {
+        throw refusalError(token)
+      }
+
+      return token
+    },
+    startSession: async ({ chatId, clientData }) => {
+      const session = await startChatSession({ chatId, clientData })
+
+      if ("upgrade" in session) {
+        throw refusalError(session)
+      }
+
+      return session
+    },
     clientData: { botId },
   })
   const {
@@ -91,6 +119,7 @@ function ChatThread({ chatId, bots }: ChatThreadProps) {
       setBotId={setBotId}
       initialMessages={initialMessages}
       transport={transport}
+      sendBlockedRefusal={sendBlockedRefusal}
     />
   )
 }
@@ -102,6 +131,7 @@ function ChatThreadMessages({
   setBotId,
   initialMessages,
   transport,
+  sendBlockedRefusal,
 }: ChatThreadMessagesProps) {
   const { messages, sendMessage, status, stop, error, regenerate } = useChat({
     id: chatId,
@@ -110,6 +140,7 @@ function ChatThreadMessages({
     resume: initialMessages.length > 0,
   })
   const { sendAction } = useChatActions({ sendMessage })
+  const { showRefusal } = useRefusalToast()
 
   const followed = useRef(new Set<string>())
 
@@ -145,6 +176,11 @@ function ChatThreadMessages({
     const text = message.text.trim()
 
     if (!text || error != null || status !== "ready") {
+      return
+    }
+
+    if (sendBlockedRefusal) {
+      showRefusal(sendBlockedRefusal)
       return
     }
 
