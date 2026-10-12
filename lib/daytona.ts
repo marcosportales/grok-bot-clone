@@ -4,9 +4,6 @@ const globalForDaytona = globalThis as typeof globalThis & {
   daytona?: Daytona
 }
 
-// The dashboard is the origin. The API the SDK calls is under `/api`. A URL of
-// the origin makes `GET /sandbox/:id` return dashboard HTML, and the SDK then
-// calls `getToolboxProxyUrl` with no sandbox id.
 function daytonaApiUrl(value: string | undefined): string | undefined {
   if (!value) {
     return undefined

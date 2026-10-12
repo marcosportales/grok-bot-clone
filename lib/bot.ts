@@ -1,13 +1,5 @@
 import type { Bot } from "@/lib/db/schema"
 
-/**
- * A bot as its dialog holds it: the four things the form answers, and the id
- * that says which row those answers belong to.
- *
- * The row carries the owner, the sandbox, and the creation time as well, and
- * none of those are the dialog's business. Keeping them out of this shape keeps
- * them out of the RSC payload that ships it to the client.
- */
 export type EditableBot = {
   id: string
   name: string
@@ -26,10 +18,6 @@ export function toEditableBot(bot: Bot): EditableBot {
   }
 }
 
-/**
- * A bot as the group dialog's picker holds it: the id that says which bot a
- * choice is, and the two things the chip draws for it.
- */
 export type BotOption = { id: string; name: string; avatar: string }
 
 export function toBotOption(bot: Bot): BotOption {

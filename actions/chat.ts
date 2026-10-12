@@ -19,8 +19,6 @@ import { getChatWithBots } from "@/queries/chat"
 const startSession = chat.createStartSessionAction("chat")
 const loadStoredTranscript = chat.createLoadTranscriptAction(defaultStorage)
 
-// The chat id arrives from the browser. The row has to belong to the signed-in
-// user before a session token or a transcript is handed back.
 async function requireOwnedChat(chatId: string) {
   const owned = await getChatWithBots(chatId)
 
@@ -67,16 +65,6 @@ type GroupChatResult =
   | { ok: true; chat: { id: string; name: string } }
   | { ok: false; error: string }
 
-/**
- * Creates a group chat and its members. A group is a `chats` row of kind
- * `group` with a name of its own, plus one `chat_members` row per chosen bot,
- * so the two are written in one transaction.
- *
- * Every submitted bot id is read back from the caller's own bots inside that
- * transaction, because a Server Action is a public endpoint: an id for somebody
- * else's bot, or one that has since been deleted, leaves the count short and
- * creates nothing.
- */
 export async function createGroupChat(
   input: InsertGroupChat
 ): Promise<GroupChatResult> {
@@ -123,8 +111,6 @@ export async function createGroupChat(
       return { ok: false, error: "One of those bots no longer exists." }
     }
 
-    // The new chat is a sidebar row, so the dashboard refresh covers the layout
-    // rather than the page under it.
     revalidatePath("/", "layout")
 
     return { ok: true, chat: { id: created.id, name } }

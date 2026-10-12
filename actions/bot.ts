@@ -15,8 +15,6 @@ import {
 } from "@/lib/db/schema"
 import { createSandbox, deleteSandbox } from "@/lib/sandbox"
 
-// Action return values are serialized into the RSC payload, so the row stays on
-// the server and this shape carries only what the dialog renders.
 type BotResult =
   { ok: true; bot: { id: string; name: string } } | { ok: false; error: string }
 
@@ -26,8 +24,6 @@ export async function createBot(input: InsertBot): Promise<BotResult> {
     return { ok: false, error: "Sign in to create a bot." }
   }
 
-  // A Server Action is a public endpoint, so the client's values get validated
-  // again here rather than trusted.
   const parsed = insertBotSchema.safeParse(input)
   if (!parsed.success) {
     return {
@@ -38,8 +34,6 @@ export async function createBot(input: InsertBot): Promise<BotResult> {
 
   const { name, avatar, job, instructions } = parsed.data
 
-  // The sandbox exists before the row, so a failed insert can delete it instead
-  // of leaving a bot that points at nothing. Nothing runs inside the sandbox.
   let sandboxId: string
   try {
     sandboxId = await createSandbox()
@@ -49,7 +43,6 @@ export async function createBot(input: InsertBot): Promise<BotResult> {
   }
 
   try {
-    // One transaction, so a failure cannot leave a bot with no conversation.
     const createdBot = await db.transaction(async (tx) => {
       const [bot] = await tx
         .insert(bots)
@@ -59,13 +52,10 @@ export async function createBot(input: InsertBot): Promise<BotResult> {
           avatar,
           job,
           sandboxId,
-          // An untouched textarea is "no instructions", which is null in SQL,
-          // not an empty string.
           instructions: instructions?.trim() || null,
         })
         .returning({ id: bots.id, name: bots.name })
 
-      // A direct chat is identified by its bot, so it needs no name of its own.
       const [chat] = await tx
         .insert(chats)
         .values({ userId, kind: "direct" })
@@ -93,11 +83,6 @@ export async function createBot(input: InsertBot): Promise<BotResult> {
   }
 }
 
-/**
- * Saves an edited bot. The id comes from the dialog rather than from a form
- * field, and it is matched against the session's `userId` as well, so a client
- * cannot edit a bot it does not own by naming its id.
- */
 export async function updateBot(
   botId: string,
   input: InsertBot
@@ -107,8 +92,6 @@ export async function updateBot(
     return { ok: false, error: "Sign in to edit a bot." }
   }
 
-  // A Server Action is a public endpoint, so the id and the values are
-  // validated together here rather than trusted.
   const parsed = updateBotSchema.safeParse({ ...input, id: botId })
   if (!parsed.success) {
     return {
@@ -130,8 +113,6 @@ export async function updateBot(
       return { ok: false, error: "That bot no longer exists." }
     }
 
-    // The name and the face are the sidebar's rows and the chat's header too,
-    // so the dashboard refresh covers the layout rather than the page under it.
     revalidatePath("/", "layout")
 
     return { ok: true, bot }
@@ -141,11 +122,6 @@ export async function updateBot(
   }
 }
 
-/**
- * Deletes a bot, and the direct chat that existed only for it. As with an edit,
- * the id is matched against the session's `userId`, so a client cannot delete a
- * bot it does not own.
- */
 export async function deleteBot(botId: string): Promise<BotResult> {
   const { isAuthenticated, userId } = await auth()
   if (!isAuthenticated) {
@@ -161,9 +137,6 @@ export async function deleteBot(botId: string): Promise<BotResult> {
     return { ok: false, error: "That bot no longer exists." }
   }
 
-  // Remove the sandbox before the row. If the row delete then fails, a retry
-  // finds the sandbox already gone and can finish deleting the bot. The other
-  // order would drop the only copy of the sandbox id.
   if (existing.sandboxId) {
     try {
       await deleteSandbox(existing.sandboxId)
@@ -175,8 +148,6 @@ export async function deleteBot(botId: string): Promise<BotResult> {
 
   try {
     const bot = await db.transaction(async (tx) => {
-      // Read the chats before the delete: a bot's membership rows cascade away
-      // with the bot, and those rows are what names the chats it belonged to.
       const directChats = await tx
         .select({ id: chatMembers.chatId })
         .from(chatMembers)
@@ -198,8 +169,6 @@ export async function deleteBot(botId: string): Promise<BotResult> {
         return null
       }
 
-      // A direct chat is only ever about its bot, so the bot takes the chat with
-      // it. A group chat keeps its other members and stays.
       if (directChats.length > 0) {
         await tx.delete(chats).where(
           inArray(
@@ -216,8 +185,6 @@ export async function deleteBot(botId: string): Promise<BotResult> {
       return { ok: false, error: "That bot no longer exists." }
     }
 
-    // The bot was a sidebar row, so the dashboard refresh covers the layout
-    // rather than the page under it.
     revalidatePath("/", "layout")
 
     return { ok: true, bot }
