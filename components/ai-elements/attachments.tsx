@@ -20,9 +20,6 @@ import {
 import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo } from "react";
 
-// ============================================================================
-// Types
-// ============================================================================
 
 export type AttachmentData =
   | (FileUIPart & { id: string })
@@ -47,9 +44,6 @@ const mediaCategoryIcons: Record<AttachmentMediaCategory, typeof ImageIcon> = {
   video: VideoIcon,
 };
 
-// ============================================================================
-// Utility Functions
-// ============================================================================
 
 export const getMediaCategory = (
   data: AttachmentData
@@ -108,9 +102,6 @@ const renderAttachmentImage = (
     />
   );
 
-// ============================================================================
-// Contexts
-// ============================================================================
 
 interface AttachmentsContextValue {
   variant: AttachmentVariant;
@@ -127,9 +118,6 @@ interface AttachmentContextValue {
 
 const AttachmentContext = createContext<AttachmentContextValue | null>(null);
 
-// ============================================================================
-// Hooks
-// ============================================================================
 
 export const useAttachmentsContext = () =>
   useContext(AttachmentsContext) ?? { variant: "grid" as const };
@@ -142,9 +130,6 @@ export const useAttachmentContext = () => {
   return ctx;
 };
 
-// ============================================================================
-// Attachments - Container
-// ============================================================================
 
 export type AttachmentsProps = HTMLAttributes<HTMLDivElement> & {
   variant?: AttachmentVariant;
@@ -175,9 +160,6 @@ export const Attachments = ({
   );
 };
 
-// ============================================================================
-// Attachment - Item
-// ============================================================================
 
 export type AttachmentProps = HTMLAttributes<HTMLDivElement> & {
   data: AttachmentData;
@@ -225,9 +207,6 @@ export const Attachment = ({
   );
 };
 
-// ============================================================================
-// AttachmentPreview - Media preview
-// ============================================================================
 
 export type AttachmentPreviewProps = HTMLAttributes<HTMLDivElement> & {
   fallbackIcon?: ReactNode;
@@ -275,9 +254,6 @@ export const AttachmentPreview = ({
   );
 };
 
-// ============================================================================
-// AttachmentInfo - Name and type display
-// ============================================================================
 
 export type AttachmentInfoProps = HTMLAttributes<HTMLDivElement> & {
   showMediaType?: boolean;
@@ -307,9 +283,6 @@ export const AttachmentInfo = ({
   );
 };
 
-// ============================================================================
-// AttachmentRemove - Remove button
-// ============================================================================
 
 export type AttachmentRemoveProps = ComponentProps<typeof Button> & {
   label?: string;
@@ -365,9 +338,6 @@ export const AttachmentRemove = ({
   );
 };
 
-// ============================================================================
-// AttachmentHoverCard - Hover preview
-// ============================================================================
 
 export type AttachmentHoverCardProps = ComponentProps<typeof HoverCard>;
 
@@ -403,9 +373,6 @@ export const AttachmentHoverCardContent = ({
   />
 );
 
-// ============================================================================
-// AttachmentEmpty - Empty state
-// ============================================================================
 
 export type AttachmentEmptyProps = HTMLAttributes<HTMLDivElement>;
 

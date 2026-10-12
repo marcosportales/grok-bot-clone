@@ -108,11 +108,9 @@ export const SpeechInput = ({
   const onAudioRecordedRef =
     useRef<SpeechInputProps["onAudioRecorded"]>(onAudioRecorded);
 
-  // Keep refs in sync
   onTranscriptionChangeRef.current = onTranscriptionChange;
   onAudioRecordedRef.current = onAudioRecorded;
 
-  // Initialize Speech Recognition when mode is speech-recognition
   useEffect(() => {
     if (mode !== "speech-recognition") {
       return;
@@ -177,7 +175,6 @@ export const SpeechInput = ({
     };
   }, [mode, lang]);
 
-  // Cleanup MediaRecorder and stream on unmount
   useEffect(
     () => () => {
       if (mediaRecorderRef.current?.state === "recording") {
@@ -192,7 +189,6 @@ export const SpeechInput = ({
     []
   );
 
-  // Start MediaRecorder recording
   const startMediaRecorder = useCallback(async () => {
     if (!onAudioRecordedRef.current) {
       return;
@@ -228,7 +224,6 @@ export const SpeechInput = ({
               onTranscriptionChangeRef.current?.(transcript);
             }
           } catch {
-            // Error handling delegated to the onAudioRecorded caller
           } finally {
             setIsProcessing(false);
           }
@@ -255,7 +250,6 @@ export const SpeechInput = ({
     }
   }, []);
 
-  // Stop MediaRecorder recording
   const stopMediaRecorder = useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
@@ -279,7 +273,6 @@ export const SpeechInput = ({
     }
   }, [mode, isListening, startMediaRecorder, stopMediaRecorder]);
 
-  // Determine if button should be disabled
   const isDisabled =
     mode === "none" ||
     (mode === "speech-recognition" && !isRecognitionReady) ||
@@ -288,7 +281,6 @@ export const SpeechInput = ({
 
   return (
     <div className="relative inline-flex items-center justify-center">
-      {/* Animated pulse rings */}
       {isListening &&
         [0, 1, 2].map((index) => (
           <div
@@ -301,7 +293,6 @@ export const SpeechInput = ({
           />
         ))}
 
-      {/* Main record button */}
       <Button
         className={cn(
           "relative z-10 rounded-full transition-all duration-300",

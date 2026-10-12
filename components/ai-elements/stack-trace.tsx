@@ -26,7 +26,6 @@ import {
   useState,
 } from "react";
 
-// Regex patterns for parsing stack traces
 const STACK_FRAME_WITH_PARENS_REGEX = /^at\s+(.+?)\s+\((.+):(\d+):(\d+)\)$/;
 const STACK_FRAME_WITHOUT_FN_REGEX = /^at\s+(.+):(\d+):(\d+)$/;
 const ERROR_TYPE_REGEX = /^(\w+Error|Error):\s*(.*)$/;
@@ -69,7 +68,6 @@ const useStackTrace = () => {
 const parseStackFrame = (line: string): StackFrame => {
   const trimmed = line.trim();
 
-  // Pattern: at functionName (filePath:line:column)
   const withParensMatch = trimmed.match(STACK_FRAME_WITH_PARENS_REGEX);
   if (withParensMatch) {
     const [, functionName, filePath, lineNum, colNum] = withParensMatch;
@@ -87,7 +85,6 @@ const parseStackFrame = (line: string): StackFrame => {
     };
   }
 
-  // Pattern: at filePath:line:column (no function name)
   const withoutFnMatch = trimmed.match(STACK_FRAME_WITHOUT_FN_REGEX);
   if (withoutFnMatch) {
     const [, filePath, lineNum, colNum] = withoutFnMatch;
@@ -105,7 +102,6 @@ const parseStackFrame = (line: string): StackFrame => {
     };
   }
 
-  // Fallback: unparseable line
   return {
     columnNumber: null,
     filePath: null,
@@ -132,7 +128,6 @@ const parseStackTrace = (trace: string): ParsedStackTrace => {
   let errorType: string | null = null;
   let errorMessage = firstLine;
 
-  // Try to extract error type from "ErrorType: message" format
   const errorMatch = firstLine.match(ERROR_TYPE_REGEX);
   if (errorMatch) {
     const [, type, msg] = errorMatch;
@@ -140,7 +135,6 @@ const parseStackTrace = (trace: string): ParsedStackTrace => {
     errorMessage = msg || "";
   }
 
-  // Parse stack frames (lines starting with "at")
   const frames = lines
     .slice(1)
     .filter((line) => line.trim().startsWith("at "))
