@@ -6,7 +6,32 @@ import { bots } from "@/lib/db/schema"
 import { recordUsage } from "./ledger"
 import { usagePeriod } from "./period"
 
-/** The idle interval Daytona stops a sandbox after, and so the cap on one accrual. */
+/**
+ * The idle interval Daytona stops a sandbox after, and so the cap on one accrual.
+ *
+ * Observed rather than assumed. `scripts/sandbox-autostop-probe.ts` creates a
+ * sandbox at this interval, touches it once, and then reads `state` and
+ * `lastActivityAt` back through the Daytona list API without touching it again.
+ * At 900s of idle the sandbox still read as started, at 924s it read as stopped,
+ * and its own stop timestamp landed at 918.5s, which is 18.5s past the 900s it
+ * was given and never early. `docs/daytona-autostop/` holds that timeline, a
+ * compressed one at 2 minutes, and the same measurement taken from a sandbox the
+ * app created itself rather than the probe, where the overshoot was 12s.
+ *
+ * The reads do not disturb what they measure, and those artifacts are the
+ * evidence for that rather than the SDK's docs: `lastActivityAt` did not move
+ * across the 39 and 67 reads of those runs, and moved once in each, when the
+ * sandbox stopped. A second sandbox left unread until the end of a run was
+ * stopped as well.
+ *
+ * The overshoot is what one accrual can be wrong by, and it runs in the
+ * direction that under-charges: a gap past this interval bills as exactly this
+ * many minutes while the sandbox may have run up to twenty seconds more. The
+ * accrual is exact only while the number here is the number `lib/sandbox.ts`
+ * hands Daytona, so the two move together. If they ever cannot, a stopped
+ * sandbox carries its own stop instant in `lastActivityAt`, which is where a
+ * meter would read the truth from.
+ */
 export const sandboxAutoStopMinutes = 15
 
 /**

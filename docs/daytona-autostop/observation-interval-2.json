@@ -1,0 +1,279 @@
+{
+  "intervalMinutes": 2,
+  "productionIntervalMinutes": 15,
+  "deadlineMinutes": 10,
+  "polled": {
+    "id": "e1038e90-512b-4dcc-bbfd-910dc361baed",
+    "anchorAt": "2026-10-13T00:54:25.813Z",
+    "samples": [
+      {
+        "elapsedSeconds": 2,
+        "readAt": "2026-10-13T00:54:28.205Z",
+        "state": "started",
+        "lastActivityAt": "2026-10-13T00:54:24.721Z"
+      },
+      {
+        "elapsedSeconds": 18,
+        "readAt": "2026-10-13T00:54:43.410Z",
+        "state": "started",
+        "lastActivityAt": "2026-10-13T00:54:25.801Z"
+      },
+      {
+        "elapsedSeconds": 33,
+        "readAt": "2026-10-13T00:54:58.909Z",
+        "state": "started",
+        "lastActivityAt": "2026-10-13T00:54:25.801Z"
+      },
+      {
+        "elapsedSeconds": 49,
+        "readAt": "2026-10-13T00:55:14.387Z",
+        "state": "started",
+        "lastActivityAt": "2026-10-13T00:54:25.801Z"
+      },
+      {
+        "elapsedSeconds": 64,
+        "readAt": "2026-10-13T00:55:29.850Z",
+        "state": "started",
+        "lastActivityAt": "2026-10-13T00:54:25.801Z"
+      },
+      {
+        "elapsedSeconds": 79,
+        "readAt": "2026-10-13T00:55:45.251Z",
+        "state": "started",
+        "lastActivityAt": "2026-10-13T00:54:25.801Z"
+      },
+      {
+        "elapsedSeconds": 95,
+        "readAt": "2026-10-13T00:56:00.649Z",
+        "state": "started",
+        "lastActivityAt": "2026-10-13T00:54:25.801Z"
+      },
+      {
+        "elapsedSeconds": 110,
+        "readAt": "2026-10-13T00:56:15.928Z",
+        "state": "started",
+        "lastActivityAt": "2026-10-13T00:54:25.801Z"
+      },
+      {
+        "elapsedSeconds": 126,
+        "readAt": "2026-10-13T00:56:31.391Z",
+        "state": "started",
+        "lastActivityAt": "2026-10-13T00:54:25.801Z"
+      },
+      {
+        "elapsedSeconds": 141,
+        "readAt": "2026-10-13T00:56:46.797Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 156,
+        "readAt": "2026-10-13T00:57:02.207Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 172,
+        "readAt": "2026-10-13T00:57:17.581Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 187,
+        "readAt": "2026-10-13T00:57:32.792Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 202,
+        "readAt": "2026-10-13T00:57:47.991Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 218,
+        "readAt": "2026-10-13T00:58:03.376Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 233,
+        "readAt": "2026-10-13T00:58:18.595Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 248,
+        "readAt": "2026-10-13T00:58:33.818Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 263,
+        "readAt": "2026-10-13T00:58:49.226Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 279,
+        "readAt": "2026-10-13T00:59:04.433Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 294,
+        "readAt": "2026-10-13T00:59:19.849Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 309,
+        "readAt": "2026-10-13T00:59:35.296Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 325,
+        "readAt": "2026-10-13T00:59:50.700Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 340,
+        "readAt": "2026-10-13T01:00:06.113Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 356,
+        "readAt": "2026-10-13T01:00:21.585Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 371,
+        "readAt": "2026-10-13T01:00:36.781Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 386,
+        "readAt": "2026-10-13T01:00:51.984Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 402,
+        "readAt": "2026-10-13T01:01:07.456Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 417,
+        "readAt": "2026-10-13T01:01:22.871Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 432,
+        "readAt": "2026-10-13T01:01:38.070Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 447,
+        "readAt": "2026-10-13T01:01:53.267Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 463,
+        "readAt": "2026-10-13T01:02:08.470Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 478,
+        "readAt": "2026-10-13T01:02:23.884Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 493,
+        "readAt": "2026-10-13T01:02:39.078Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 509,
+        "readAt": "2026-10-13T01:02:54.365Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 524,
+        "readAt": "2026-10-13T01:03:09.577Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 539,
+        "readAt": "2026-10-13T01:03:24.997Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 554,
+        "readAt": "2026-10-13T01:03:40.208Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 570,
+        "readAt": "2026-10-13T01:03:55.395Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      },
+      {
+        "elapsedSeconds": 585,
+        "readAt": "2026-10-13T01:04:10.626Z",
+        "state": "stopped",
+        "lastActivityAt": "2026-10-13T00:56:42.712Z"
+      }
+    ],
+    "stoppedAtSeconds": 141,
+    "stopWindowSeconds": [
+      126,
+      141
+    ],
+    "stopStampedSeconds": 136.899,
+    "lastActivityAtAtEnd": "2026-10-13T00:56:42.712Z",
+    "wake": {
+      "stateBefore": "stopped",
+      "stateAfter": "started",
+      "at": "2026-10-13T01:04:28.777Z"
+    }
+  },
+  "control": {
+    "id": "3b511ac1-7e23-4854-bcdc-6836f8663d26",
+    "anchorAt": "2026-10-13T00:54:27.794Z",
+    "readAt": "2026-10-13T01:04:25.629Z",
+    "elapsedSeconds": 598,
+    "state": "stopped",
+    "lastActivityAt": "2026-10-13T00:54:26.382Z"
+  },
+  "meter": {
+    "windowSeconds": 603,
+    "billedMinutes": 10,
+    "billedSeconds": 600,
+    "observedRunningSeconds": 136.899,
+    "observedRunningMinutes": 2,
+    "capMinutes": 15,
+    "intervalSeconds": 120,
+    "stoppedAtOrAfterInterval": true,
+    "overshootSeconds": 16.899,
+    "capIsConfiguredInterval": false,
+    "underchargeSeconds": -463.101
+  },
+  "deleted": true
+}
