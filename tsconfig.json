@@ -11,6 +11,10 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // The scripts in `scripts/` run under Node's type stripping, which resolves
+    // no extensionless relative import, so they import their shared loader by
+    // its `.ts` path.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
