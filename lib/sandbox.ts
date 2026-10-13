@@ -14,6 +14,7 @@ import { sandboxAutoStopMinutes } from "@/lib/usage/sandbox"
 export async function createSandbox(): Promise<string> {
   // The idle interval is also the cap on one accrual of sandbox minutes, so the
   // sandbox Daytona stops on its own is the sandbox the ledger can charge for.
+  // `scripts/sandbox-autostop-probe.ts` observes it stopping at that interval.
   const sandbox = await getDaytona().create({
     autoStopInterval: sandboxAutoStopMinutes,
   })
