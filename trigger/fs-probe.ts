@@ -49,14 +49,6 @@ async function open(sandboxId: string | undefined): Promise<{
   return { sandbox, created: true }
 }
 
-/**
- * Proves that the two file tools work in the runtime the tasks run in. The SDK's
- * file transfer cannot run in a task, so the tools go through the shell, and it
- * calls the two functions the tools call. The SDK's own calls are recorded
- * beside them as the reason.
- *
- * Needs `DAYTONA_API_KEY`. A sandbox it creates is deleted before it returns.
- */
 export const fsProbe = schemaTask({
   id: "fs-probe",
   schema: z.object({
