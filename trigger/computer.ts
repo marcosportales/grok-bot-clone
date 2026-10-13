@@ -13,6 +13,7 @@ import { database } from "./db"
 
 const commandTimeoutSeconds = 60
 const maxCommandOutput = 16_000
+const maxFileBytes = 512_000
 const maxFileChars = 64_000
 const maxListedEntries = 200
 const maxScreenChars = 12_000
@@ -94,6 +95,85 @@ function pathOf(path: string): string | Failure {
   }
 
   return path
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`
+}
+
+async function sandboxFileSize(
+  sandbox: Sandbox,
+  path: string
+): Promise<number> {
+  const response = await sandbox.process.executeCommand(
+    `wc -c < ${shellQuote(path)}`
+  )
+
+  if (response.exitCode !== 0) {
+    throw new Error(
+      response.result?.trim() || "The sandbox could not read that file."
+    )
+  }
+
+  return Number(response.result?.trim())
+}
+
+/**
+ * Both file tools go through the shell. The SDK's own transfer cannot run in a
+ * task: `downloadFile` needs `busboy` and `uploadFile` needs `form-data`, and it
+ * reaches both through a dynamic CommonJS require that resolves from the bundle
+ * rather than from the SDK's install directory.
+ */
+export async function readSandboxFile(
+  sandbox: Sandbox,
+  path: string
+): Promise<ReadFileResult> {
+  const size = await sandboxFileSize(sandbox, path)
+
+  if (size > maxFileBytes) {
+    return { error: "That file is too large to read." }
+  }
+
+  const response = await sandbox.process.executeCommand(
+    `base64 -w0 < ${shellQuote(path)}`
+  )
+
+  if (response.exitCode !== 0) {
+    throw new Error(
+      response.result?.trim() || "The sandbox could not read that file."
+    )
+  }
+
+  const bytes = Buffer.from(
+    (response.result ?? "").replace(/\s/g, ""),
+    "base64"
+  )
+
+  if (bytes.includes(0)) {
+    return { error: "That file is not text." }
+  }
+
+  return { path, content: clip(bytes.toString("utf8"), maxFileChars) }
+}
+
+export async function writeSandboxFile(
+  sandbox: Sandbox,
+  path: string,
+  content: string
+): Promise<WriteFileResult> {
+  const bytes = Buffer.from(content, "utf8")
+  // The SDK's upload creates a missing parent directory, so this does too.
+  const response = await sandbox.process.executeCommand(
+    `mkdir -p "$(dirname ${shellQuote(path)})" && printf %s '${bytes.toString("base64")}' | base64 -d > ${shellQuote(path)}`
+  )
+
+  if (response.exitCode !== 0) {
+    throw new Error(
+      response.result?.trim() || "The sandbox could not write that file."
+    )
+  }
+
+  return { path, bytes: bytes.length }
 }
 
 /** The bot whose computer a chat works on, and the user its time is billed to. */
@@ -424,22 +504,7 @@ export function computerTools(chatId: string) {
             return filePath
           }
 
-          const bytes = await sandbox.fs.downloadFile(filePath)
-
-          if (bytes.includes(0)) {
-            return { error: "That file is not text." } satisfies ReadFileResult
-          }
-
-          if (bytes.length > 512_000) {
-            return {
-              error: "That file is too large to read.",
-            } satisfies ReadFileResult
-          }
-
-          return {
-            path: filePath,
-            content: clip(bytes.toString("utf8"), maxFileChars),
-          } satisfies ReadFileResult
+          return readSandboxFile(sandbox, filePath)
         }),
     }),
     writeFile: tool({
@@ -456,13 +521,7 @@ export function computerTools(chatId: string) {
             return filePath
           }
 
-          const bytes = Buffer.from(content, "utf8")
-          await sandbox.fs.uploadFile(bytes, filePath)
-
-          return {
-            path: filePath,
-            bytes: bytes.length,
-          } satisfies WriteFileResult
+          return writeSandboxFile(sandbox, filePath, content)
         }),
     }),
     listFiles: tool({

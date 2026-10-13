@@ -11,11 +11,11 @@ page, the chat page, the pricing page, and the usage page all sit behind Clerk
 and all render inside the dashboard shell, which is the sidebar. A signed-out
 visitor to any of them lands on `/sign-in` and never sees the shell. Two 404
 surfaces are not routes of their own: an unmatched URL renders one outside the
-shell and a chat id the reader does not own renders the other inside it. Eleven
+shell and a chat id the reader does not own renders the other inside it. Twelve
 behaviors are mapped: the root page, the sidebar shell, the bot dialog, the chat
-page, the group chat and its handoff, the dark-mode toggle, the Clerk auth
-surface, the plan gate with its pricing page, the usage page, the health
-endpoint, and the two not-found pages. Browser-side persistence is
+page and the file tools its turns reach, the group chat and its handoff, the
+dark-mode toggle, the Clerk auth surface, the plan gate with its pricing page,
+the usage page, the health endpoint, and the two not-found pages. Browser-side persistence is
 `localStorage["theme"]` and the `sidebar_state` cookie; the other durable state
 is the `bots`, `chats`, and `chat_members` tables that the bot dialog and the
 group dialog write. Plan entitlement is not stored here at all: it is read from
@@ -168,6 +168,9 @@ required state, commands, and observable proof.
   edits the chat's bot, the share placeholder, the message thread, and the
   composer. The missing-chat case it hands to
   [Not-found pages](./not-found.md).
+- [Chat file tools](./chat-files.md) covers the `writeFile` and `readFile` tools a
+  turn can reach, what each card shows, the file policy both share, and the worker
+  probe that checks it without the composer.
 - [Group chat](./group-chat.md) covers the `New group chat` dialog, the header
   button and the `Edit group chat` dialog it opens, the picker, the handoff between
   members, and deleting a group.
