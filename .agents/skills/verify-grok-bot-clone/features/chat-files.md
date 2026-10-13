@@ -16,12 +16,16 @@ byte count, `Read <path>` holds the contents.
   `Read <path>` with the contents and `Completed`.
 - `chat-files-parent` writing a path whose directory does not exist creates the
   directory, which is what the SDK's upload did.
-- `chat-files-binary` reading a file with a NUL byte returns `That file is not
-text.` instead of contents.
-- `chat-files-too-large` reading a file above 512,000 bytes returns
-  `That file is too large to read.`
-- `chat-files-missing` reading a path that is not there returns the shell's
-  error rather than throwing the turn.
+- `chat-files-path` a path with a space and a quote in its name round trips,
+  because the tool single-quotes it for the shell.
+- `chat-files-empty` an empty file reads as empty contents, not an error.
+- `chat-files-binary` a file with a NUL byte reads as `That file is not text.`
+  instead of contents.
+- `chat-files-too-large` a file one byte above 512,000 bytes reads as
+  `That file is too large to read.`, while one exactly at 512,000 bytes is read
+  and clipped to 64,000 characters.
+- `chat-files-missing` a path that is not there, or a directory, reports an error
+  rather than throwing the turn.
 
 ## How to get to it (user POV)
 
@@ -52,16 +56,18 @@ Preconditions:
 - **Visual proof.** Run
   `$CG screenshot "$ART/chat-files.png" --hide "nextjs-portal,next-route-announcer"`
   with the two cards in view.
-- **The refusals and the rest of the policy.** Run
+- **The policy the composer cannot reach.** Run
   `node scripts/sandbox-fs-probe.ts`. It creates its own sandbox, runs
-  `readSandboxFile` and `writeSandboxFile` — the two functions the tools call —
-  inside the `fs-probe` task through the dev worker, and prints the six checks.
-  All six pass: a written file reads back byte for byte, the write reports its
-  byte count, a binary file is refused, a file above the cap is refused, a
-  missing file reports an error, and a write creates a missing parent directory.
-  The `sdkUpload` and `sdkDownload` fields beside them still fail with
-  `Cannot find module 'form-data'` and `Cannot find module 'busboy'`, which is
-  the reason the tools do not use them.
+  `readSandboxFile` and `writeSandboxFile`, which are the two functions the tools
+  call, inside the `fs-probe` task through the dev worker, and prints ten checks.
+  All ten pass: a written file reads back byte for byte, the write reports its
+  byte count, a path with a space and a quote round trips, an empty file reads as
+  empty, a file exactly at the cap is read and clipped, a file one byte past the
+  cap is refused, a binary file is refused, a directory reports an error, a
+  missing file reports an error naming the path, and a write creates a missing
+  parent directory. The `sdkUpload` and `sdkDownload` fields beside them still
+  fail with `Cannot find module 'form-data'` and `Cannot find module 'busboy'`,
+  which is the reason the tools do not use them.
 - **A turn that asks for one tool.** Read the cards, not the answer: the model
   writes the file with `bash` when the request allows it, and then the round trip
   proves the shell rather than the tool.
@@ -76,8 +82,9 @@ Preconditions:
   the SDK's: a file that is both oversized and binary reads as too large.
 - The binary check is a NUL byte after decoding, so a file that is merely invalid
   UTF-8 still comes back as text with replacement characters.
-- `writeFile` quotes the path for the shell, so a name with a space or a quote
-  works. `pathOf` rejects a NUL byte, which is what the shell cannot carry.
+- `writeFile` single-quotes the path for the shell, so a name with a space or a
+  quote round trips, and the probe checks that one does. `pathOf` still rejects a
+  NUL byte, which is the one thing the shell cannot carry.
 - Two tool calls in one step run concurrently, so a turn that writes and reads in
   the same step can read before the write lands. The model's own retry hides it,
   and the order of the cards in the thread is the order the model asked in, not
