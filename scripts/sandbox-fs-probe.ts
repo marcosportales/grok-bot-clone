@@ -32,8 +32,6 @@ const { values } = parseArgs({
 const probeDir = "/tmp/mar-184"
 const text = "mar-184 probe\n"
 const sdkFile = `${probeDir}/sdk-transfer.txt`
-// The two nested paths differ so neither run can prepare the directory for the
-// other, which is what makes the comparison a comparison.
 const sdkNestedFile = `${probeDir}/nested-sdk/deeper/probe.txt`
 const runDeadlineMs = 5 * 60_000
 
@@ -124,18 +122,34 @@ if (created && !values.keep) {
 }
 
 const out = (run.output ?? {}) as Record<string, Record<string, unknown>>
+const clipped = "a".repeat(64_000)
 
 const checks: Array<[string, boolean]> = [
   ["a written file reads back byte for byte", out.read?.content === text],
   ["the write reports its byte count", out.write?.bytes === bytes.length],
-  ["a binary file is refused", out.binary?.error === "That file is not text."],
   [
-    "a file above the size cap is refused",
-    out.oversized?.error === "That file is too large to read.",
+    "a path with a space and a quote round trips",
+    out.spacedPath?.content === text,
+  ],
+  ["an empty file reads as empty", out.empty?.content === ""],
+  [
+    "a file exactly at the cap is read and clipped",
+    Number(out.atCap?.chars) >= clipped.length,
   ],
   [
-    "a missing file reports an error",
-    Boolean(out.missing?.error ?? out.missing?.thrown),
+    "a file one byte past the cap is refused",
+    out.overCap?.error === "That file is too large to read.",
+  ],
+  ["a binary file is refused", out.binary?.error === "That file is not text."],
+  [
+    "a directory reports an error instead of contents",
+    Boolean(out.directory?.error ?? out.directory?.thrown),
+  ],
+  [
+    "a missing file reports an error that names the path",
+    String(out.missing?.thrown ?? out.missing?.error ?? "").includes(
+      "missing.txt"
+    ),
   ],
   [
     "a write creates a missing parent directory",

@@ -97,7 +97,6 @@ function pathOf(path: string): string | Failure {
   return path
 }
 
-/** Single-quotes a path, so a name with a space or a quote stays one word. */
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`
 }
@@ -123,9 +122,7 @@ async function sandboxFileSize(
  * Both file tools go through the shell. The SDK's own transfer cannot run in a
  * task: `downloadFile` needs `busboy` and `uploadFile` needs `form-data`, and it
  * reaches both through a dynamic CommonJS require that resolves from the bundle
- * rather than from the SDK's install directory. `lib/memory.ts` reads and writes
- * the same way for the same reason, and the size check runs before the read so
- * an oversized file is never transferred.
+ * rather than from the SDK's install directory.
  */
 export async function readSandboxFile(
   sandbox: Sandbox,

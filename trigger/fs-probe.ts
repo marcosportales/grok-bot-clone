@@ -7,15 +7,18 @@ import { sandboxAutoStopMinutes } from "@/lib/usage/sandbox"
 
 import { readSandboxFile, writeSandboxFile } from "./computer"
 
+const cap = 512_000
 const probeDir = "/tmp/mar-184"
+const text = "mar-184 probe\n"
 const textFile = `${probeDir}/probe.txt`
+const spacedFile = `${probeDir}/a file's name.txt`
+const emptyFile = `${probeDir}/empty.txt`
+const atCapFile = `${probeDir}/at-cap.txt`
+const overCapFile = `${probeDir}/over-cap.txt`
 const binaryFile = `${probeDir}/binary.bin`
-const bigFile = `${probeDir}/big.txt`
 const nestedFile = `${probeDir}/nested/deeper/probe.txt`
 const sdkFile = `${probeDir}/sdk-transfer.txt`
-const text = "mar-184 probe\n"
 
-/** Records what a call returned, or what it threw, so nothing is lost. */
 async function record<T>(
   work: () => Promise<T>
 ): Promise<T | { thrown: string }> {
@@ -47,14 +50,10 @@ async function open(sandboxId: string | undefined): Promise<{
 }
 
 /**
- * Proves that the two file tools work in the runtime the tasks run in.
- *
- * `readFile` and `writeFile` are the only tools that touch a sandbox file, and
- * the SDK's file transfer cannot run in a task, so the tools go through the
- * shell. This runs the same functions the tools run, against its own sandbox,
- * and records what each returned. The SDK's own transfer is recorded beside
- * them: it is the reason the tools do not use it, and it will say so the day a
- * new build makes it work.
+ * Proves that the two file tools work in the runtime the tasks run in. The SDK's
+ * file transfer cannot run in a task, so the tools go through the shell, and it
+ * calls the two functions the tools call. The SDK's own calls are recorded
+ * beside them as the reason.
  *
  * Needs `DAYTONA_API_KEY`. A sandbox it creates is deleted before it returns.
  */
@@ -72,14 +71,20 @@ export const fsProbe = schemaTask({
 
     const fixtures = await record(async () => {
       const response = await sandbox.process.executeCommand(
-        `mkdir -p ${probeDir} && printf 'a\\000b' > ${binaryFile} && head -c 600000 /dev/zero | tr '\\0' a > ${bigFile}`
+        [
+          `mkdir -p ${probeDir}`,
+          `touch ${emptyFile}`,
+          `printf 'a\\000b' > ${binaryFile}`,
+          `head -c ${cap} /dev/zero | tr '\\0' a > ${atCapFile}`,
+          `head -c ${cap + 1} /dev/zero | tr '\\0' a > ${overCapFile}`,
+        ].join(" && ")
       )
 
       if (response.exitCode !== 0) {
         throw new Error(response.result?.trim() || "fixtures failed")
       }
 
-      return "binary and oversized fixtures written"
+      return `empty, ${cap} byte, ${cap + 1} byte, binary and nested fixtures`
     })
 
     const result = {
@@ -88,8 +93,20 @@ export const fsProbe = schemaTask({
       fixtures,
       write: await record(() => writeSandboxFile(sandbox, textFile, text)),
       read: await record(() => readSandboxFile(sandbox, textFile)),
+      spacedPath: await record(async () => {
+        await writeSandboxFile(sandbox, spacedFile, text)
+        return readSandboxFile(sandbox, spacedFile)
+      }),
+      empty: await record(() => readSandboxFile(sandbox, emptyFile)),
+      atCap: await record(async () => {
+        const read = await readSandboxFile(sandbox, atCapFile)
+        return "error" in read
+          ? read
+          : { path: read.path, chars: read.content.length }
+      }),
+      overCap: await record(() => readSandboxFile(sandbox, overCapFile)),
       binary: await record(() => readSandboxFile(sandbox, binaryFile)),
-      oversized: await record(() => readSandboxFile(sandbox, bigFile)),
+      directory: await record(() => readSandboxFile(sandbox, probeDir)),
       missing: await record(() =>
         readSandboxFile(sandbox, `${probeDir}/missing.txt`)
       ),
