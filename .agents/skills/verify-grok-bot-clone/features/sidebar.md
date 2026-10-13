@@ -1,12 +1,12 @@
 # Sidebar
 
-The dashboard shell. Signed in, every page under the root layout renders inside
-it, so the rail and its controls sit beside the root page and beside a chat. The
-rail collapses to a 3rem icon strip and remembers the choice, its `New` button
-opens a menu that starts the bot dialog and the group chat dialog, its `Search`
-field and the `⌘K` chord open a palette over the current chat, its list shows one
-row per chat with the open one marked, and its footer holds the Clerk account
-control. The dialogs it starts are [Bot dialog](./bots.md) and
+The dashboard shell. Signed in, every page in the `(dashboard)` group renders
+inside it, so the rail and its controls sit beside the root page and beside a
+chat. The rail collapses to a 3rem icon strip and remembers the choice, its `New`
+button opens a menu that starts the bot dialog and the group chat dialog, its
+`Search` field and the `⌘K` chord open a palette over the current chat, its list
+shows one row per chat with the open one marked, and its footer holds the Clerk
+account control. The dialogs it starts are [Bot dialog](./bots.md) and
 [Group chat](./group-chat.md), and opening a row lands on
 [Chat page](./chat-page.md).
 
@@ -30,6 +30,9 @@ control. The dialogs it starts are [Bot dialog](./bots.md) and
 - `sidebar-working-dot` a chat whose bot is replying carries a static red dot at the
   top-right of its face, with a ring in the sidebar's own colour, and loses it when
   the turn ends.
+- `sidebar-unread-dot` a chat with a bot reply the reader has not opened carries a dot
+  at the bottom-right of its face, named `Unread reply`, and loses it when the chat
+  is opened or its row is the open one.
 - `sidebar-empty` an account with no chats shows an empty list and no empty-state
   copy.
 - `sidebar-account` `Open user menu` opens the account panel with `Manage account`,
@@ -101,8 +104,12 @@ Preconditions:
   `/chats/<id>`. The navigation runs in the browser, so read the path a moment
   after the click.
 - **The list.** On `/`, run
-  `$CG eval "[...document.querySelectorAll('[data-slot=sidebar-menu-button]')].map((e) => ({ name: e.textContent.trim().replace(/\s+/g, ' '), current: e.getAttribute('aria-current') }))"`.
-  One entry per chat carries the bot's name, its age, and its job as the preview.
+  `$CG eval "[...document.querySelectorAll('[data-slot=sidebar-menu-button]')].map((e) => ({ name: e.innerText.replace(/\s+/g, ' ').trim(), current: e.getAttribute('aria-current') }))"`.
+  One entry per chat carries the bot's name, its age, and a preview. The preview is
+  the chat's last user message once it has one, and the bot's job until then. Read
+  the row with `innerText`, not `textContent`: the name, the age, and the preview
+  are separate elements with no whitespace between them in the markup, so
+  `textContent` runs them together into one word.
 - **The open chat is marked.** On `/chats/<id>`, run the same read. The row for that
   chat has `current` equal to `"page"` and every other row is `null`.
 - **Empty list.** Sign in as an account with no chats, open `/`, then run the list
@@ -167,8 +174,10 @@ Preconditions:
 ## Gotchas
 
 - The working dot lives on the sidebar row and nowhere else. The search palette
-  renders the same summaries and shows no dot on any row, even for a chat that is
-  mid-reply.
+  renders the same summaries and shows no working dot on any row, even for a chat
+  that is mid-reply. It does render the unread dot: the palette spreads the chat's
+  `unread` flag and skips the suppression of the open chat's row that the list
+  applies.
 - The working dot is static on purpose. A pulse would overstate a turn that can run
   for minutes and would animate a list of dozens of rows.
 - `data-slot="chat-unread-dot"` and `data-slot="chat-working-dot"` are separate
@@ -188,13 +197,16 @@ Preconditions:
 - The palette's dialog is named `Search chats`, so while it is open
   `dialog "Search chats"` targets it. The heading from the previous bullet shares
   that name, which is why the check above uses the role.
-- `Search` and `New` are `sr-only` labels, so both keep their names while the rail
-  is collapsed even though the visible text is gone. Same for a chat row: the label
-  is visually hidden, not removed from the tree.
+- `New` is an `sr-only` label, and `Search` becomes one once the rail collapses,
+  so both keep their names while the rail is collapsed even though the visible text
+  is gone. Same for a chat row: the label is visually hidden, not removed from the
+  tree.
 - The stable handle for the rail is
   `document.querySelector('[data-slot=sidebar]').getAttribute('data-state')`. Read
   it after a beat, because a collapse read mid-animation reports an intermediate
-  width rather than the 3rem strip.
+  width rather than the 3rem strip. Below `md` the shell renders the rail as an
+  off-canvas sheet whose `[data-slot=sidebar]` carries no `data-state`, so the
+  handle reads `null` there: drive the rail at a desktop width.
 - `sidebar_state` is a cookie, not `localStorage`. `down` and a fresh `up` start a
   new Chrome profile with the rail expanded, so clear or set the cookie when a
   recipe needs baseline state.

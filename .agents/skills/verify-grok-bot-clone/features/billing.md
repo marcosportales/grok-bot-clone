@@ -1,9 +1,13 @@
 # Billing gate and pricing page
 
 Bots and their sandboxes are the billable capabilities. A signed-in user on the
-free plan can create nothing and run nothing: bot creation, the chat composer,
+free plan cannot create a bot and cannot run one: bot creation, the chat composer,
 and the desktop panel each refuse with an error toast whose `See plans` action
-lands on `/pricing`, which renders Clerk's pricing table and opens checkout.
+lands on `/pricing`, which renders Clerk's pricing table and opens checkout. Not
+everything is gated: a free user who still holds a bot can rename and reconfigure
+it (`updateBot`), can create and edit group chats (`createGroupChat`,
+`updateGroupChat`), and can delete what they own. Only creation, the composer, and
+the screen ask for the plan.
 A user on the paid `pro` plan uses all of it, and a user who stops paying keeps
 their history and can still delete what they own.
 
@@ -34,7 +38,7 @@ their history and can still delete what they own.
   click `Submit`.
 - Signed in with a bot, open its chat and click `Toggle Desktop`.
 - Click `See plans` on any upgrade toast.
-- Open `/pricing` directly. Nothing in the sidebar links to it.
+- Signed in, open `/pricing` directly. Nothing in the sidebar links to it.
 
 ## Driving it with control-grok
 
@@ -74,9 +78,11 @@ Free plan, everything blocked:
   `$CG click --role button --name "Submit"`. The toast title is
   `This needs the Pro plan` and its description is `Bots are part of the Pro plan.`,
   and `$CG text "[role=log]"` still reads `Send a message`, which is the empty
-  state. The composer takes the same two rules the action does, so a spent
-  allowance on a paid account gives the same shape with a different sentence. See
-  [Usage](./usage.md).
+  state. The composer carries three gates, not one: the chat page and
+  `startChatSession` gate `bots`, and `mintChatAccessToken` gates `sandboxes`, so a
+  refusal can read either `Bots are part of the Pro plan.` or
+  `Sandboxes are part of the Pro plan.` A spent allowance on a paid account gives
+  the same shape with a different sentence. See [Usage](./usage.md).
 - **Desktop panel.** `$CG click --role button --name "Toggle Desktop"`. The toast
   description is `Sandboxes are part of the Pro plan.`, the panel shows
   `No screen` with that same line, and
@@ -89,9 +95,14 @@ Free plan, everything blocked:
 
 Paid plan, everything allowed:
 
-- **The page.** `$CG open /pricing` and `$CG text`. Stdout contains `Plans`,
-  `Bots and their computers are part of the Pro plan.`, `Free`, `Active`, `Pro`,
-  and `Subscribe`.
+- **The page.** `$CG open /pricing` and `$CG text`. Every account sees `Plans`,
+  `Bots and their computers are part of the Pro plan.`, `Free`, and `Pro`. The
+  account's own plan is the one marked `Active`, and the other plan's control names
+  the move. The free account reads `Free` `Active` with the paid control
+  `Subscribe`; the paid test account reads `Pro` `Active` with `Resubscribe`,
+  because it carries a scheduled cancel (see Gotchas). Every one of those strings
+  comes from Clerk's hosted pricing table, not from this repo, so re-read the page
+  after a Clerk dashboard change instead of asserting them from source.
 - **Checkout.** `$CG click --role button --name "Subscribe"`, then
   `$CG click --role button --name "Pay with test card"`, then
   `$CG click --role button --name "Continue"`. The plan card reads `Active`,
@@ -143,3 +154,6 @@ Paid plan, everything allowed:
 - `createBot` refuses before `createSandbox()` runs, so the blocked path leaves
   no Daytona sandbox behind. Prove it by reading the `bots` count, not by
   watching for an error.
+- The screen refusal needs the bot to have a `sandbox_id`: `getChatScreen` checks
+  that before the plan, so a row provisioned without one reads `No screen` and
+  raises no toast at all.

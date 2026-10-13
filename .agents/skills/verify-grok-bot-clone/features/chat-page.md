@@ -184,7 +184,8 @@ Preconditions:
   reports `true` before the thread has anything to show. Scope it to `#chat`.
 - `snapshot` drops unnamed `paragraph` nodes, and a message body is one. Pair every
   assertion about what a message says with `$CG text` or an `innerText` read of
-  `[role=log]`.
+  `[role=log]`. Tool cards are the exception: each is named, so they do appear, per
+  [Chat tool cards](./chat-tools.md).
 - The composer's textbox has no label. Its accessible name is the placeholder
   `What would you like to know?`.
 - The submit button is `Submit` at rest and `Stop` while a turn streams, so a

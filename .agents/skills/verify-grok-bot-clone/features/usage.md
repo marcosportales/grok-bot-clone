@@ -30,7 +30,7 @@ in-app way in.
 ## How to get to it (user POV)
 
 - Sign in, choose `Open user menu` in the sidebar footer, then `Usage`.
-- Open `/usage` directly. Nothing in the sidebar links to it.
+- Signed in, open `/usage` directly. Nothing in the sidebar links to it.
 
 ## Driving it with control-grok
 
@@ -69,10 +69,13 @@ The meters, on an account whose plan carries the capabilities:
   It prints three percentages, in the same order as the cards, each the used share
   of that meter's allowance and never above `100%`.
 - **The window.** Run
+  `$CG eval "[...document.querySelectorAll('p')].map((p) => p.innerText).find((t) => t.startsWith('What this account'))"`.
+  It prints `What this account has used in <Month YYYY>.` Then run
   `$CG eval "[...document.querySelectorAll('p')].map((p) => p.innerText).find((t) => t.startsWith('Limits reset'))"`.
   It prints
-  `Limits reset on <Month D, YYYY>. <N> days left in this window.` The day of the
-  month is always `1`, and the month is the one after the month the header names.
+  `Limits reset on <Month D, YYYY>. <N> days left in this window.`, reading `day`
+  instead of `days` on the last UTC day of the month. The day of the month is always
+  `1`, and the month is the one after the month the header names.
 - **Visual proof.** Run
   `$CG screenshot "$ART/usage-page.png" --hide "nextjs-portal,next-route-announcer"`
   and `$CG snapshot "$ART/usage-page.aria.txt" --hide "nextjs-portal,next-route-announcer"`.
@@ -84,7 +87,8 @@ A spent meter, with three owned bots on the paid plan:
   `You have reached your limit of 3 bots.`
 - **The distinct look.** Run
   `$CG eval "[...document.querySelectorAll('[data-slot=progress-indicator]')].map((i) => getComputedStyle(i).backgroundColor)"`.
-  The entry for `Bots` is a colour no other card uses, and the same read of
+  The entry for `Bots` is a colour no other card uses while it is the only meter at
+  its limit; two spent meters share the destructive colour. The same read of
   `i.style.width` is `100%` for it.
 
 An account on the free plan:
@@ -108,12 +112,16 @@ An overshoot, provisioned out of band:
 
 - The bar's `aria-valuenow` is the fill percentage, not an amount. Read the amounts
   from `[data-slot=card-description]`, and read `aria-valuenow` only to prove the
-  fill is a number.
+  fill is a number. Each progress root also carries its meter's name as an
+  `aria-label`, so a snapshot shows `progressbar "AI tokens"`,
+  `progressbar "Sandbox time"`, and `progressbar "Bots"`.
 - A free account has an allowance of zero on every meter. Its cards carry no
   numbers at all, so a run that wants to see `of <limit> used` needs a paid
   account. Reporting the free cards as a broken amount is a misread.
-- `used` can pass `limit`, because a chat turn is metered after it runs. A card can
-  read `1,200,000 of 1,000,000 used` while its bar is pinned at the track's end.
+- `used` can pass `limit`: a chat turn is metered after it runs, and sandbox minutes
+  accrue from creating, touching, and deleting a bot with a cap per window
+  (`lib/usage/sandbox.ts`), so that meter moves with no chat activity at all. A card
+  can read `1,200,000 of 1,000,000 used` while its bar is pinned at the track's end.
   That is `usage-overshoot`, not a rendering fault.
 - A spent card repeats the sentence the refusal uses, so the same line appears on
   the page and in a toast raised from a chat. Match it with `$CG text`, not with a

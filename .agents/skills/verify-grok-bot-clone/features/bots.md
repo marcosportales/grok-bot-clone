@@ -68,13 +68,14 @@ Preconditions:
   `$CG click --role menuitem --name "Create new bot"`, then
   `$CG eval "!!document.querySelector('#new-bot-form')"`. It prints `true`, the same
   form the root trigger opens.
-- **Presets.** Run `$CG click --role button --name "Tutor"`, then
-  `$CG eval "document.querySelector('#new-bot-job').value"`. It prints `"Tutor"`.
-- **Validation first, with both fields empty.** Run
+- **Validation first, with both fields empty.** On a freshly opened dialog run
   `$CG click --role button --name "Create bot"`, then
   `$CG text '[role=dialog]'`. The output contains `Give your bot a name.` and
   `Give your bot a job.`, and a snapshot shows two `alert` nodes inside the dialog.
-  The dialog is still open, so no request was sent.
+  The dialog is still open, so no request was sent. Run this before any preset: a
+  preset fills `Job`, and a second submit then reports only the name.
+- **Presets.** Run `$CG click --role button --name "Tutor"`, then
+  `$CG eval "document.querySelector('#new-bot-job').value"`. It prints `"Tutor"`.
 - **Type the name.** Run `$CG click --role textbox --name "Name"`, then
   `$CG type "Ada"`, then `$CG eval "document.querySelector('#new-bot-name').value"`.
   It prints `"Ada"`. Use `type`, not repeated `press`: `press` refuses punctuation.
@@ -125,7 +126,9 @@ Preconditions:
   `$CG click --role button --name "Save changes"` and `sleep 4`. A toast reads
   `Ada is updated` with the line
   `The new name and face are what you will see from now on.`, and the sidebar row
-  now reads `<name> now <new job>`. Read the row back:
+  carries the new name. Its preview reads the new job only while the chat has no
+  user message; once one exists the preview is that message instead
+  (`lib/chat.ts`). Read the row back:
 
   ```bash
   BOT_ID='<id>' node -e '
