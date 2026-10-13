@@ -88,9 +88,11 @@ $CG doctor
 Read-only. Reports the run id, both PIDs and whether they are alive, whether the
 run owns the dev server (`owned=false` means it was reused), the dev server's
 working directory (must be this checkout), the `GET /` status, the path the page is
-on, and one accessibility assertion for that path. Signed out, the page sits on
-`/sign-in` and the assertion is the form's `Sign in to grok-bot-clone` heading;
-signed in it sits on `/` and the assertion is the `Create a new bot` button. Exits
+on, and one accessibility assertion for that path. Signed out the assertion is the
+auth route's heading, `Sign in to grok-bot-clone` or `Create your account`. Signed
+in, `/` asserts the `Create a new bot` button, `/pricing`, `/usage`, and
+`/chats/<id>` assert the rail's `New` button, and any other path is unmatched and
+asserts the `Back to chats` link, because that page renders outside the shell. Exits
 non-zero and lists problems when the instance is not worth driving. Run it first
 whenever anything looks off, and before a proof run whose result matters.
 

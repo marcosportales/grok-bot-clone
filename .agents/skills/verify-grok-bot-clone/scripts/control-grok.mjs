@@ -753,7 +753,11 @@ async function cmdDoctor() {
           ? ["heading", "Create your account"]
           : path.startsWith("/sign-in")
             ? ["heading", "Sign in to grok-bot-clone"]
-            : ["button", "Create a new bot"]
+            : path === "/"
+              ? ["button", "Create a new bot"]
+              : path === "/pricing" || path === "/usage" || path.startsWith("/chats/")
+                ? ["button", "New"]
+                : ["link", "Back to chats"]
         const found = await waitForAx(role, name)
         log(`${role.padEnd(10)} ${found ? "found" : "MISSING"}`)
         if (!found) problems.push(`no ${role} named "${name}" at ${path} after 10s`)
