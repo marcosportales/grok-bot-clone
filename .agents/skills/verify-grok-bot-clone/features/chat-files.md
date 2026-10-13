@@ -18,7 +18,9 @@ byte count, `Read <path>` holds the contents.
   directory, which is what the SDK's upload did.
 - `chat-files-path` a path with a space and a quote in its name round trips,
   because the tool single-quotes it for the shell.
-- `chat-files-empty` an empty file reads as empty contents, not an error.
+- `chat-files-empty` an empty file reads as empty contents, not an error. In the
+  thread the card renders no code block at all, because the body draws only when
+  the contents are truthy.
 - `chat-files-binary` a file with a NUL byte reads as `That file is not text.`
   instead of contents.
 - `chat-files-too-large` a file one byte above 512,000 bytes reads as
@@ -49,10 +51,13 @@ Preconditions:
   `$CG type "Call the writeFile tool, not bash, to write 'readFile and writeFile work' to /tmp/mar-184-proof/hello.txt. Wait for its result, then call readFile, not bash, on the same path. Reply with exactly what readFile returned."`,
   then `$CG click --role button --name "Submit"`. Wait for the thread to settle
   and read it with `$CG eval "document.querySelector('[role=log]').innerText"`.
-  It holds `Write /tmp/mar-184-proof/hello.txt`, `Completed`,
-  `readFile and writeFile work`, `Wrote 27 bytes.`, then
-  `Read /tmp/mar-184-proof/hello.txt`, `Completed`,
-  `readFile and writeFile work`. Neither card is an error.
+  It holds `Write <path>`, `Completed`, `readFile and writeFile work`,
+  `Wrote 27 bytes.`, then `Read <path>`, `Completed`,
+  `readFile and writeFile work`. Neither card is an error. `<path>` is the string
+  the model passed to the tool, echoed by the card and clipped to 80 characters
+  (`chat-tool.tsx`), so the model may send `/tmp/mar-184-proof/hello.txt` or
+  `tmp/mar-184-proof/hello.txt`: assert on the file name and the contents, never on
+  the leading slash.
 - **Visual proof.** Run
   `$CG screenshot "$ART/chat-files.png" --hide "nextjs-portal,next-route-announcer"`
   with the two cards in view.
@@ -65,9 +70,11 @@ Preconditions:
   empty, a file exactly at the cap is read and clipped, a file one byte past the
   cap is refused, a binary file is refused, a directory reports an error, a
   missing file reports an error naming the path, and a write creates a missing
-  parent directory. The `sdkUpload` and `sdkDownload` fields beside them still
+  parent directory. The script prints two blocks carrying the same field names: a
+  `local (node_modules, no bundle)` control whose `sdkUpload` and `sdkDownload`
+  succeed because it runs outside the task, and the `worker` result whose copies
   fail with `Cannot find module 'form-data'` and `Cannot find module 'busboy'`,
-  which is the reason the tools do not use them.
+  which is the reason the tools do not use them. Read the worker block.
 - **A turn that asks for one tool.** Read the cards, not the answer: the model
   writes the file with `bash` when the request allows it, and then the round trip
   proves the shell rather than the tool.
@@ -91,3 +98,8 @@ Preconditions:
   the order the sandbox saw.
 - The turn's answer is the model's paraphrase. Only the card's contents are the
   file's bytes.
+- The write tool caps its input before any shell runs: a path over 500 characters or
+  content over 100,000 characters is refused by its schema and renders an error
+  card (`trigger/computer.ts`).
+- A turn stops after 15 model steps (`trigger/chat.ts`), which a round trip that
+  writes, reads, and then answers can spend.

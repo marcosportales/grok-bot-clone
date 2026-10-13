@@ -2,9 +2,12 @@
 
 The root page is behind Clerk. Signed out it never renders, because the page calls
 `auth.protect()` and the request lands on the sign-in route instead. Signed in it
-shows the first-run empty state, a face drawn from a fresh seed on every request,
-and the `Create a new bot` trigger that opens the bot dialog. The page renders
-inside the dashboard shell, so the sidebar is on screen around it. The dialog and
+shows the empty state, a face drawn from a fresh seed on every request, and the
+`Create a new bot` trigger that opens the bot dialog. The empty state is
+unconditional: it renders on every visit, even for an account that already owns
+bots and chats (`app/(dashboard)/page.tsx`), so it marks nothing about a first
+run. The page renders inside the dashboard shell, so the sidebar is on screen
+around it. The dialog and
 what it writes are [Bot dialog](./bots.md), the shell around the page is
 [Sidebar](./sidebar.md), the header controls are gone and the account control is
 [Auth](./auth.md), and the dark-mode hotkey is
@@ -70,6 +73,10 @@ Preconditions:
   `$CG text` and the trigger with `--role button`.
 - The document still has no `<title>`, so the ARIA root stays an unnamed
   `RootWebArea`.
+- The empty-state face renders `alt=""`, so the accessibility tree carries no
+  image node for it. Read the face from the DOM with
+  `document.querySelector('[data-slot=empty-header] img').src`; an ARIA snapshot
+  cannot see it.
 - There is no site header. The account control lives in the sidebar footer, so a
   recipe that looks for a `banner` finds nothing. Use
   `--role button --name "Open user menu"` on any dashboard page instead, per

@@ -83,9 +83,10 @@ Preconditions:
 - The chat variant is behind Clerk. Signed out, a request for `/chats/<id>`
   redirects to the sign-in route and never renders the page, so `nopage-missing-chat`
   cannot be driven from a signed-out run.
-- A chat id owned by another account and a chat id that never existed render the
-  same page with the same status. The reader can not tell them apart, which is
-  the point.
+- A chat id owned by another account, a chat id that never existed, and a chat the
+  reader owns whose bots are all gone (`queries/chat.ts` returns null for a chat
+  with no bot member) all render the same page with the same status. The reader can
+  not tell them apart, which is the point.
 - The description block is a `div` with no role, and the driver's snapshot skips
   unnamed `generic` nodes, so the block carries the copy as its own `aria-label`.
   Strip that label and the snapshot loses the description while the visible text
@@ -111,3 +112,6 @@ Preconditions:
   that the seed does not change, never that it draws a particular face.
 - Copy is sentence case with no exclamation marks, and neither variant offers
   `Create a new bot`. A run that finds that button here is on `/`.
+- Neither page is the app's only error surface. An unhandled server error renders
+  `app/global-error.tsx` instead: a generic message and a Sentry capture, with no
+  `Back to chats` frame and no 404 status.

@@ -1,18 +1,21 @@
 # Auth
 
-Clerk guards the root page and the chat page. Signed out, a request for either one
-redirects to the sign-in route with a `redirect_url` back to it. The `/sign-in` and
+Clerk guards four routes: the root page, the chat page, the pricing page, and the
+usage page. Signed out, a request for any of them redirects to the sign-in route
+with a `redirect_url` back to it. The `/sign-in` and
 `/sign-up` routes render Clerk's forms as full pages, and each form links to the
 other. There is no site header and no sign-in modal, so the page form is the only
-way in. Signed in, the account control sits in the sidebar footer, and it opens a
-panel holding `Manage account`, `Usage`, and `Sign out`. The shell the control
+way in, and a session that expires mid-use surfaces as a server-action error such
+as `Sign in to create a bot.` rather than as a redirect. Signed in, the account
+control sits in the sidebar footer, and it opens a panel holding `Manage account`,
+`Usage`, which navigates to `/usage`, and `Sign out`. The shell the control
 lives in is
 [Sidebar](./sidebar.md).
 
 ## Sub-features
 
-- `auth-gate` signed out, a request for `/` or `/chats/<id>` redirects to the
-  sign-in route with a `redirect_url` back to the requested path.
+- `auth-gate` signed out, a request for `/`, `/chats/<id>`, `/pricing`, or `/usage`
+  redirects to the sign-in route with a `redirect_url` back to the requested path.
 - `auth-signin-route` `/sign-in` renders the sign-in form in the page body.
 - `auth-signup-route` `/sign-up` renders the sign-up form with an email field, a
   password field, and a show-password control.
@@ -61,7 +64,9 @@ Preconditions:
   `heading "Sign in to grok-bot-clone" level=1` inside `main`,
   `button "Continue with Google"`, `textbox "Email address" required=true`,
   `button "Continue"`, and the links `Sign up` and `Clerk logo`. There is no
-  `banner` and no `Sign in` button.
+  `banner` and no `Sign in` button. The form is identifier-first: `Password` appears
+  only after `Continue` is pressed, so the first snapshot has no password field,
+  unlike `/sign-up`, which shows both fields at once.
 - **Sign-up route.** Run `$CG open /sign-up` and `$CG eval "location.pathname"`.
   The path is `"/sign-up"`, and the tree holds
   `heading "Create your account" level=1`, `textbox "Email address" required=true`,
