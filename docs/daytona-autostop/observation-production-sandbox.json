@@ -1,0 +1,16 @@
+{
+  "kind": "production sandbox, read after the fact rather than created by the probe",
+  "why": "The app never calls stop, and this sandbox's bot was not deleted, so its own autoStopInterval is the only thing that can have stopped it. Its lastActivityAt was still the touch when the sandbox read started, and it had moved when the sandbox read stopped, which is how the stop instant is read off it.",
+  "id": "4f39e392-858a-4a9f-bfd6-1171f523bd4c",
+  "autoStopIntervalMinutes": 15,
+  "state": "stopped",
+  "createdAt": "2026-10-12T11:19:46.905Z",
+  "armedAt": "2026-10-12T23:36:00.152Z",
+  "lastActivityAtWhenLastSeenStarted": "2026-10-12T23:36:00.152Z",
+  "lastActivityAtWhenSeenStopped": "2026-10-12T23:51:12.534Z",
+  "updatedAt": "2026-10-12T23:51:27.270Z",
+  "observedRunningSeconds": 912.382,
+  "observedRunningMinutes": 15.206366666666666,
+  "overshootSeconds": 12.382,
+  "stoppedAtOrAfterInterval": true
+}
